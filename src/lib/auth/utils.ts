@@ -1,0 +1,91 @@
+import { getServerSession as nextAuthGetServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import { authConfig, isDevBypassEnabled, getDevBypassSession } from './config';
+import { db } from '@/lib/db';
+import type { Session } from 'next-auth';
+
+/**
+ * Server-side session retrieval.
+ * Respects DEV_AUTH_BYPASS in development so you can work without real auth.
+ */
+export async function getServerSession(): Promise<Session | null> {
+    if (isDevBypassEnabled()) {
+        return getDevBypassSession() as Session;
+    }
+    return nextAuthGetServerSession(authConfig);
+}
+
+/**
+ * Asserts the current request is authenticated.
+ * Redirects to /login (with callbackUrl) if not.
+ *
+ * @param redirectTo - Optional path to redirect back to after login.
+ *                     Defaults to the current page (handled by middleware).
+ */
+export async function requireAuth(redirectTo?: string): Promise<Session> {
+    const session = await getServerSession();
+
+    if (!session) {
+        const loginUrl = redirectTo
+            ? `/login?callbackUrl=${encodeURIComponent(redirectTo)}`
+            : '/login';
+        redirect(loginUrl);
+    }
+
+    return session;
+}
+
+/**
+ * Asserts the current user is a member of the given workspace with at least
+ * the required role. Throws a 403-style error if not.
+ *
+ * Role hierarchy: owner > viewer
+ *
+ * @param workspaceId  - The workspace to check membership for.
+ * @param requiredRole - Minimum role required. Defaults to 'viewer'.
+ */
+export async function requireWorkspaceAccess(
+    workspaceId: string,
+    requiredRole: 'owner' | 'viewer' = 'viewer',
+): Promise<void> {
+    const session = await requireAuth();
+
+    const userId = session.user?.id;
+    if (!userId) {
+        throw new WorkspaceAccessError('User ID not found in session', 403);
+    }
+
+    const membership = await db.workspaceMember.findUnique({
+        where: {
+            workspaceId_userId: {
+                workspaceId,
+                userId,
+            },
+        },
+        select: { role: true },
+    });
+
+    if (!membership) {
+        throw new WorkspaceAccessError(
+            `User is not a member of workspace ${workspaceId}`,
+            403,
+        );
+    }
+
+    if (requiredRole === 'owner' && membership.role !== 'owner') {
+        throw new WorkspaceAccessError(
+            `Owner role required for workspace ${workspaceId}`,
+            403,
+        );
+    }
+}
+
+export class WorkspaceAccessError extends Error {
+    constructor(
+        message: string,
+        public readonly statusCode: number,
+    ) {
+        super(message);
+        this.name = 'WorkspaceAccessError';
+    }
+}
