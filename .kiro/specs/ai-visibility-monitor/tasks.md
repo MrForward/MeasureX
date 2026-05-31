@@ -35,10 +35,10 @@ This implementation plan covers the complete build-out of the AI Visibility Moni
 
 ### Phase 3: Processing Pipeline
 
-- [ ] 3.1 Implement exact-match entity extraction (brand name, aliases, competitor names — case-insensitive)
-- [ ] 3.2 Implement fuzzy-match entity extraction (Levenshtein distance ≤ 2, minimum 80% name length)
-- [ ] 3.3 Implement URL extraction and domain normalization from response text
-- [ ] 3.4 Implement citation classification (brand domain, competitor domain, third-party)
+- [x] 3.1 Implement exact-match entity extraction (brand name, aliases, competitor names — case-insensitive)
+- [x] 3.2 Implement fuzzy-match entity extraction (Levenshtein distance ≤ 2, minimum 80% name length)
+- [x] 3.3 Implement URL extraction and domain normalization from response text
+- [x] 3.4 Implement citation classification (brand domain, competitor domain, third-party)
 - [ ] 3.5 Implement mention position analysis (split response into thirds, assign first/middle/last)
 - [ ] 3.6 Implement confidence scoring (exact=1.0, fuzzy=0.5-0.9 based on edit distance)
 - [ ] 3.7 Implement ambiguity flagging for mentions with confidence < 0.7

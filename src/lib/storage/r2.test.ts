@@ -167,16 +167,19 @@ describe('storeRawResponse', () => {
         expect(mockDbUpdate).toHaveBeenCalledOnce();
     });
 
-    it('checksum is consistent with computeChecksum on the same content', async () => {
+    it('returns a checksum that matches the SHA-256 of the stored content', async () => {
         mockSend.mockResolvedValueOnce({});
 
         const result = await storeRawResponse(SAMPLE_PARAMS);
 
-        // The checksum must be deterministic — calling again with same params yields same checksum
-        mockSend.mockResolvedValueOnce({});
-        const result2 = await storeRawResponse(SAMPLE_PARAMS);
+        // Capture the exact content sent to S3 PutObject and verify the returned
+        // checksum is the SHA-256 of that content. This is the genuine integrity
+        // guarantee — the checksum describes the bytes that were actually stored,
+        // independent of timestamp timing between separate store calls.
+        const command = mockSend.mock.calls[0][0] as { input: { Body: string } };
+        const storedBody = command.input.Body;
 
-        expect(result.checksum).toBe(result2.checksum);
+        expect(result.checksum).toBe(computeChecksum(storedBody));
     });
 });
 
