@@ -13,6 +13,7 @@
  * Validates: Requirement 17 (avoid false positives via word boundaries; longest-match-first)
  */
 
+import { EXACT_MATCH_CONFIDENCE } from './confidence';
 import type { EntityMatch, MatchableEntity } from './types';
 
 /**
@@ -97,7 +98,7 @@ export function findExactMatches(text: string, entities: MatchableEntity[]): Ent
                     entityType: entity.type,
                     matchedText: text.slice(start, end),
                     matchType: 'exact',
-                    confidence: 1,
+                    confidence: EXACT_MATCH_CONFIDENCE,
                     position: start,
                     end,
                 });

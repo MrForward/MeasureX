@@ -26,6 +26,7 @@
  */
 
 import { CONFIG_DEFAULTS } from '@/lib/config/defaults';
+import { fuzzyConfidence } from './confidence';
 import { editDistance } from './levenshtein';
 import type { EntityMatch, MatchableEntity } from './types';
 
@@ -40,13 +41,6 @@ const MIN_NAME_LENGTH = 4;
 
 /** Largest n-gram (in words) assembled from the text when matching names. */
 const MAX_NGRAM = 3;
-
-/** Confidence subtracted per unit of edit distance. */
-const CONFIDENCE_PENALTY_PER_EDIT = 0.175;
-
-/** Confidence bounds — fuzzy confidence is always below an exact match's 1.0. */
-const MIN_CONFIDENCE = 0.5;
-const MAX_CONFIDENCE = 0.9;
 
 /**
  * Minimum fraction of an entity name's length that a matched token must reach.
@@ -106,22 +100,6 @@ function fuzzyTermsFor(entity: MatchableEntity): string[] {
         .filter((term) => term.length >= MIN_NAME_LENGTH);
 
     return Array.from(new Set(terms));
-}
-
-/** Clamp a value into the inclusive [min, max] range. */
-function clamp(value: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, value));
-}
-
-/**
- * Confidence for a fuzzy match given its edit distance:
- *   confidence = 1 - distance * 0.175, clamped to [0.5, 0.9]
- *
- * distance 1 → ~0.83, distance 2 → 0.65. The clamp guarantees a fuzzy match is
- * never reported with the certainty of an exact (1.0) match.
- */
-function confidenceForDistance(distance: number): number {
-    return clamp(1 - distance * CONFIDENCE_PENALTY_PER_EDIT, MIN_CONFIDENCE, MAX_CONFIDENCE);
 }
 
 /**
@@ -188,7 +166,7 @@ export function findFuzzyMatches(
                         entityType: entity.type,
                         matchedText: ngramText,
                         matchType: 'fuzzy',
-                        confidence: confidenceForDistance(distance),
+                        confidence: fuzzyConfidence(distance),
                         position,
                         end: last.end,
                         distance,

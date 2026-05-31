@@ -39,12 +39,12 @@ This implementation plan covers the complete build-out of the AI Visibility Moni
 - [x] 3.2 Implement fuzzy-match entity extraction (Levenshtein distance ≤ 2, minimum 80% name length)
 - [x] 3.3 Implement URL extraction and domain normalization from response text
 - [x] 3.4 Implement citation classification (brand domain, competitor domain, third-party)
-- [ ] 3.5 Implement mention position analysis (split response into thirds, assign first/middle/last)
-- [ ] 3.6 Implement confidence scoring (exact=1.0, fuzzy=0.5-0.9 based on edit distance)
-- [ ] 3.7 Implement ambiguity flagging for mentions with confidence < 0.7
-- [ ] 3.8 Implement recommendation-strength language detection using LLM classification (Haiku/GPT-3.5)
-- [ ] 3.9 Implement context disambiguation for multi-entity matches using LLM (Haiku)
-- [ ] 3.10 Implement ModelRouter with task-based model selection and fallback chains
+- [x] 3.5 Implement mention position analysis (split response into thirds, assign first/middle/last)
+- [x] 3.6 Implement confidence scoring (exact=1.0, fuzzy=0.5-0.9 based on edit distance)
+- [x] 3.7 Implement ambiguity flagging for mentions with confidence < 0.7
+- [x] 3.8 Implement recommendation-strength language detection using LLM classification (Haiku/GPT-3.5)
+- [x] 3.9 Implement context disambiguation for multi-entity matches using LLM (Haiku)
+- [x] 3.10 Implement ModelRouter with task-based model selection and fallback chains
 - [ ] 3.11 Implement visibility score computation (4 factors × 25% equal weight)
 - [ ] 3.12 Implement aggregate metric computation (workspace-level averages, per-prompt, per-engine)
 - [ ] 3.13 Implement week-over-week change calculation with "within normal variance" flagging (<10 points)
