@@ -45,13 +45,13 @@ This implementation plan covers the complete build-out of the AI Visibility Moni
 - [x] 3.8 Implement recommendation-strength language detection using LLM classification (Haiku/GPT-3.5)
 - [x] 3.9 Implement context disambiguation for multi-entity matches using LLM (Haiku)
 - [x] 3.10 Implement ModelRouter with task-based model selection and fallback chains
-- [ ] 3.11 Implement visibility score computation (4 factors × 25% equal weight)
-- [ ] 3.12 Implement aggregate metric computation (workspace-level averages, per-prompt, per-engine)
-- [ ] 3.13 Implement week-over-week change calculation with "within normal variance" flagging (<10 points)
-- [ ] 3.14 Implement rolling 4-week average visibility score computation
-- [ ] 3.15 Implement per-competitor visibility score computation using same formula
-- [ ] 3.16 Implement share-of-voice metric (brand mentions / total mentions across all entities)
-- [ ] 3.17 Implement metric-to-raw-response linkage (every metric references its source execution)
+- [x] 3.11 Implement visibility score computation (4 factors × 25% equal weight)
+- [x] 3.12 Implement aggregate metric computation (workspace-level averages, per-prompt, per-engine)
+- [x] 3.13 Implement week-over-week change calculation with "within normal variance" flagging (<10 points)
+- [x] 3.14 Implement rolling 4-week average visibility score computation
+- [x] 3.15 Implement per-competitor visibility score computation using same formula
+- [x] 3.16 Implement share-of-voice metric (brand mentions / total mentions across all entities)
+- [x] 3.17 Implement metric-to-raw-response linkage (every metric references its source execution)
 
 ### Phase 4: Scheduling and Automation
 
