@@ -41,10 +41,15 @@ if (process.env.NODE_ENV !== 'production') {
  * In production the destination URL is derived from VERCEL_URL. In
  * development you can override it by setting APP_URL in .env.local.
  *
- * @param topic   - The job type / QStash URL group name
- * @param payload - The job payload (will be JSON-serialised)
+ * @param topic         - The job type / QStash URL group name
+ * @param payload       - The job payload (will be JSON-serialised)
+ * @param delaySeconds  - Optional delay before QStash delivers the message (for run distribution)
  */
-export async function publishJob(topic: string, payload: object): Promise<void> {
+export async function publishJob(
+    topic: string,
+    payload: object,
+    delaySeconds?: number,
+): Promise<void> {
     const baseUrl =
         process.env.APP_URL ??
         (process.env.VERCEL_URL
@@ -57,5 +62,6 @@ export async function publishJob(topic: string, payload: object): Promise<void> 
         url,
         body: payload,
         retries: 3,
+        ...(delaySeconds !== undefined && delaySeconds > 0 ? { delay: delaySeconds } : {}),
     });
 }

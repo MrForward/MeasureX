@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ExecutionJobPayload } from '@/lib/queue/types';
+import { executeJob } from '@/lib/scheduler/execute-job';
 
 /**
  * POST /api/jobs/execute
@@ -8,19 +9,22 @@ import type { ExecutionJobPayload } from '@/lib/queue/types';
  *
  * QStash calls this endpoint when an execution job is ready to be processed.
  * The handler verifies the QStash signature, parses the payload, and
- * dispatches the job to the appropriate engine adapter.
+ * dispatches the job to the appropriate engine adapter via executeJob().
  *
  * Security: The `verifySignatureAppRouter` wrapper rejects any request that
  * does not carry a valid QStash HMAC signature, preventing unauthorized
  * job injection.
  *
- * Token burn protection: Before processing, the handler checks the platform
- * kill switch in Redis. If the kill switch is active, the job is acknowledged
- * (200 OK) without processing to prevent QStash from retrying indefinitely.
+ * Return codes:
+ *   200 — Job processed (success, skipped, or non-retryable failure).
+ *         QStash will NOT retry.
+ *   400 — Invalid payload (malformed JSON or missing fields).
+ *         QStash will NOT retry (client error).
+ *   500 — Unexpected error. QStash WILL retry (up to 3 times).
  *
- * Phase 2 note: Actual engine execution (calling ChatGPT, Perplexity, etc.)
- * will be wired up in Phase 2. This skeleton establishes the handler
- * structure, signature verification, and kill-switch guard.
+ * Validates: Requirement 4.7  (retry up to 3 times with exponential backoff)
+ * Validates: Requirement 4.8  (continue processing remaining prompts on failure)
+ * Validates: Requirement 18.1 (partial failure handling)
  */
 
 async function handler(request: NextRequest): Promise<NextResponse> {
@@ -45,48 +49,22 @@ async function handler(request: NextRequest): Promise<NextResponse> {
         );
     }
 
-    // Token burn protection — check platform kill switch before processing.
-    // The kill switch is stored in Redis as "platform:kill_switch" (boolean).
-    // If active, acknowledge the job without processing so QStash stops retrying.
+    // Execute the job — all handled outcomes return 200 to prevent QStash retries
     try {
-        const { redis } = await import('@/lib/queue/redis');
-        const killSwitch = await redis.get<boolean>('platform:kill_switch');
-        if (killSwitch === true) {
-            console.warn('[execute] Platform kill switch is active — skipping job', {
-                runId,
-                promptId,
-                engine,
-                workspaceId,
-            });
-            return NextResponse.json(
-                { status: 'skipped', reason: 'kill_switch_active' },
-                { status: 200 },
-            );
-        }
+        const result = await executeJob(payload);
+
+        return NextResponse.json(
+            { status: result.status, executionId: result.executionId, error: result.error },
+            { status: 200 },
+        );
     } catch (err) {
-        // Redis unavailable — log and continue (fail open to avoid blocking all jobs)
-        console.error('[execute] Failed to check kill switch:', err);
+        // Unexpected error — return 500 so QStash retries
+        console.error('[execute] Unexpected error processing job:', err);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 },
+        );
     }
-
-    // Log the job (Phase 2: replace with actual engine execution)
-    console.log('[execute] Job received', {
-        runId,
-        promptId,
-        engine,
-        workspaceId,
-        receivedAt: new Date().toISOString(),
-    });
-
-    // TODO (Phase 2): Dispatch to engine adapter
-    //   const adapter = engineRegistry.get(engine);
-    //   const response = await adapter.execute({ promptId, runId, workspaceId });
-    //   await storeExecution(response);
-    //   await publishJob('extract', { executionId: response.id, workspaceId });
-
-    return NextResponse.json(
-        { status: 'accepted', runId, promptId, engine },
-        { status: 200 },
-    );
 }
 
 // Wrap with QStash signature verification when signing keys are available.
