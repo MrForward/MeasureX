@@ -59,11 +59,11 @@ This implementation plan covers the complete build-out of the AI Visibility Moni
 - [x] 4.2 Implement run distribution logic to spread workspace runs across the week (avoid simultaneous execution)
 - [x] 4.3 Implement BullMQ worker that processes ExecutionJobs with engine adapter routing
 - [x] 4.4 Implement run status tracking (queued → in_progress → completed/partial/failed) with execution counts
-- [ ] 4.5 Implement post-execution pipeline trigger (extraction → metrics → recommendations → notifications)
-- [ ] 4.6 Implement partial failure handling (continue run when individual executions fail, mark as skipped)
-- [ ] 4.7 Implement stale data detection for SERP provider responses (flag if older than 7 days)
-- [ ] 4.8 Implement queue priority logic (scheduled runs before manual runs, prevent duplicate prompt-engine executions)
-- [ ] 4.9 Implement run success rate tracking (monthly aggregate, alert if < 95%)
+- [x] 4.5 Implement post-execution pipeline trigger (extraction → metrics → recommendations → notifications)
+- [x] 4.6 Implement partial failure handling (continue run when individual executions fail, mark as skipped)
+- [x] 4.7 Implement stale data detection for SERP provider responses (flag if older than 7 days)
+- [x] 4.8 Implement queue priority logic (scheduled runs before manual runs, prevent duplicate prompt-engine executions)
+- [x] 4.9 Implement run success rate tracking (monthly aggregate, alert if < 95%)
 
 ### Phase 5: Dashboard and UX
 
