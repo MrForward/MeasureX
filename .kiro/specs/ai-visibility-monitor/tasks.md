@@ -67,8 +67,8 @@ This implementation plan covers the complete build-out of the AI Visibility Moni
 
 ### Phase 5: Dashboard and UX
 
-- [ ] 5.1 Create application layout with workspace switcher, navigation, and purple/white theme system
-- [ ] 5.2 Implement overview dashboard panel (workspace Visibility_Score, total mentions, citation rate, WoW trends)
+- [x] 5.1 Create application layout with workspace switcher, navigation, and purple/white theme system
+- [x] 5.2 Implement overview dashboard panel (workspace Visibility_Score, total mentions, citation rate, WoW trends)
 - [ ] 5.3 Implement prompt-level data table (per-prompt scores, mention counts, citation counts, per-engine breakdown)
 - [ ] 5.4 Implement competitor comparison view (side-by-side visibility scores, share of voice chart)
 - [ ] 5.5 Implement citation sources panel (citations grouped by domain, frequency counts, brand/competitor/third-party classification)
