@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { OnboardingWizard } from '@/components/dashboard/onboarding-wizard';
 import { PlayCircle, Users, Database } from 'lucide-react';
 import {
     Card,
@@ -73,6 +74,29 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     );
     const workspaceName = activeMembership?.workspace.name ?? 'Workspace';
     const canRun = activeMembership?.role === 'owner';
+
+    // Un-configured workspace → show onboarding inline. A fresh workspace ships
+    // with a placeholder brand profile (empty domain) but no prompts; once any
+    // prompt exists the workspace has been set up. Rendering the wizard inline
+    // (rather than redirect()) avoids the redirect-vs-error-boundary conflict.
+    const promptCount = await db.prompt.count({
+        where: { workspaceId: activeWorkspaceId },
+    });
+    if (promptCount === 0) {
+        return (
+            <div className="space-y-8">
+                <header className="space-y-1 text-center">
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+                        Welcome to MeasureX
+                    </h1>
+                    <p className="text-sm text-slate-500">
+                        Let&apos;s set up your brand monitoring — it takes about a minute.
+                    </p>
+                </header>
+                <OnboardingWizard workspaceId={activeWorkspaceId} defaultBrandName={workspaceName} />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">

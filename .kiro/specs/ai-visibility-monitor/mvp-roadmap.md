@@ -126,8 +126,12 @@ line to a working product," matching the critical path the spec itself names:
 
 ## Deferred to post-MVP (tracked, not in critical path)
 
-- Onboarding wizard + first-run summary (5.14, 5.15) — high activation value;
-  schedule right after Stage 2 if time allows.
+- ✅ **Onboarding wizard (5.14)** — DONE 2026-06-07. A workspace with no prompts
+  shows the wizard inline on /dashboard: brand → competitors → AI-suggested
+  prompts (rule-based) → baseline scan, orchestrating the existing APIs. Live +
+  validated. (`components/dashboard/onboarding-wizard.tsx`, `lib/prompts/suggestions.ts`,
+  also reachable at `/dashboard/onboarding`.) First-run summary (5.15) is served
+  by the dashboard the wizard lands on once the baseline scan completes.
 - CSV export (5.10).
 - Phase 8 — security, encryption, audit immutability, load testing. Review
   continuously; harden before any real launch.

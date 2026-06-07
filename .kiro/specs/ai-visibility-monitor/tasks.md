@@ -102,8 +102,8 @@ What IS correctly built and integrated: auth + RBAC, workspace/brand/competitor 
 - [x] 5.11 Implement prompt management UI (create, edit, archive, assign engines, view AI suggestions) _(DONE 2026-06-07 — create/edit/archive/engine-assignment at `/dashboard/prompts`. "View AI suggestions" deferred to the onboarding wizard, 5.14.)_
 - [x] 5.12 Implement prompt validation UI (character limits, duplicate warning, underperforming flag display) _(DONE 2026-06-07 — live char counter (10–500), inline validation errors, non-blocking duplicate-similarity warning. "Underperforming flag display" deferred until prompt-health tracking (Req 16.3) exists.)_
 - [ ] 5.13 Implement brand and competitor configuration UI (add/edit/remove with alias management)
-- [ ] 5.14 Implement onboarding wizard (brand → domain → competitors → AI-suggested prompts → trigger baseline)
-- [ ] 5.15 Implement first-run summary view (key findings, next steps after baseline completes)
+- [x] 5.14 Implement onboarding wizard (brand → domain → competitors → AI-suggested prompts → trigger baseline) _(DONE 2026-06-07 — 4-step wizard shown inline for un-configured workspaces; rule-based prompt suggestions (LLM later); orchestrates brand/competitor/prompt/run APIs. Live + validated.)_
+- [~] 5.15 Implement first-run summary view (key findings, next steps after baseline completes) _(Partially served — the wizard lands on the dashboard which shows the baseline results; a dedicated "key findings" summary banner is not yet built.)_
 - [ ] 5.16 Implement ambiguous mention review UI (list flagged mentions, allow user to confirm/reject)
 
 ### Phase 6: Notifications and Recommendations
