@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -82,18 +83,36 @@ export function PromptTable({ rows }: PromptTableProps) {
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex flex-wrap gap-1.5">
-                                            {row.engines.map((e) => (
-                                                <Badge
-                                                    key={e.engine}
-                                                    variant="outline"
-                                                    className={cn('gap-1 tabular-nums')}
-                                                >
-                                                    <span className="text-slate-500">{engineLabel(e.engine)}</span>
-                                                    <span className="font-semibold text-slate-900">
-                                                        {e.visibilityScore}
-                                                    </span>
-                                                </Badge>
-                                            ))}
+                                            {row.engines.map((e) => {
+                                                const content = (
+                                                    <>
+                                                        <span className="text-slate-500">{engineLabel(e.engine)}</span>
+                                                        <span className="font-semibold text-slate-900">
+                                                            {e.visibilityScore}
+                                                        </span>
+                                                    </>
+                                                );
+                                                // Link to the evidence drill-down when we know the source execution.
+                                                return e.executionId ? (
+                                                    <Link
+                                                        key={e.engine}
+                                                        href={`/dashboard/evidence/${e.executionId}`}
+                                                        className="rounded-full transition-colors hover:bg-slate-50"
+                                                        title="View source response"
+                                                    >
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="gap-1 tabular-nums hover:border-brand-200"
+                                                        >
+                                                            {content}
+                                                        </Badge>
+                                                    </Link>
+                                                ) : (
+                                                    <Badge key={e.engine} variant="outline" className="gap-1 tabular-nums">
+                                                        {content}
+                                                    </Badge>
+                                                );
+                                            })}
                                         </div>
                                     </td>
                                 </tr>

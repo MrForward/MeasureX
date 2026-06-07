@@ -19,6 +19,8 @@ export interface EngineScore {
     visibilityScore: number;
     mentionCount: number;
     citationRate: number;
+    /** Source execution, for the "view source" evidence drill-down. */
+    executionId: string | null;
 }
 
 /** One row of the prompt-level table — a prompt aggregated across its engines. */
@@ -47,6 +49,7 @@ export interface MetricForBreakdown {
     visibilityScore: number;
     mentionCount: number;
     citationRate: number;
+    rawExecutionId?: string | null;
 }
 
 function roundTo(value: number, decimals: number): number {
@@ -85,6 +88,7 @@ export function aggregatePromptBreakdown(
                 visibilityScore: Math.round(m.visibilityScore),
                 mentionCount: m.mentionCount,
                 citationRate: roundTo(m.citationRate, 1),
+                executionId: m.rawExecutionId ?? null,
             }))
             .sort((a, b) => a.engine.localeCompare(b.engine));
 
@@ -132,6 +136,7 @@ export async function loadPromptBreakdown(
             visibilityScore: true,
             mentionCount: true,
             citationRate: true,
+            rawExecutionId: true,
         },
     });
 

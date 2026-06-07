@@ -74,10 +74,13 @@ line to a working product," matching the critical path the spec itself names:
     (brand/competitor/third-party), on the dashboard. Live + tested.
     (`lib/dashboard/citation-sources.ts`, `components/dashboard/citation-sources.tsx`)
   - ✅ Earlier UX pass: all sidebar links resolve (placeholder pages), "Run scan" button.
-  - ⬜ **5.6 metric drill-down** (view raw response) — needs a raw-response viewer; bigger.
-  - ⬜ **5.7 score breakdown** — `getScoreBreakdown()` exists; needs an expand/tooltip UI.
+  - ✅ **5.6 drill-down + 5.7 score breakdown** — "view source" evidence page at
+    `/dashboard/evidence/[executionId]`: 4-factor score breakdown, raw response with
+    brand/competitor mentions highlighted, classified citations. Prompt-table engine
+    scores link to it. Live + validated. (Req 19.2, 19.4, 7.5)
+    (`lib/dashboard/evidence.ts`, `components/dashboard/evidence-view.tsx`)
   - ⬜ **5.8 recommendations panel** — blocked on Stage 5 (recommendation generation).
-  - ⬜ **5.9 variance indicators** · **5.13 competitor/brand edit UI** — pending.
+  - ⬜ **5.9 variance indicators** · **5.13 competitor/brand edit UI** — pending polish.
 
 ## Stage 4 — Cost tracking & fair-use limits ⬜
 

@@ -94,8 +94,8 @@ What IS correctly built and integrated: auth + RBAC, workspace/brand/competitor 
 - [x] 5.3 Implement prompt-level data table (per-prompt scores, mention counts, citation counts, per-engine breakdown) _(DONE 2026-06-07 — on dashboard, live + tested.)_
 - [x] 5.4 Implement competitor comparison view (side-by-side visibility scores, share of voice chart) _(DONE 2026-06-07 — `/dashboard/competitors` share-of-voice bars, live + tested. Side-by-side per-competitor visibility *scores* (vs mention share) await competitor-score persistence; SoV is delivered.)_
 - [x] 5.5 Implement citation sources panel (citations grouped by domain, frequency counts, brand/competitor/third-party classification) _(DONE 2026-06-07 — on dashboard, live + tested.)_
-- [ ] 5.6 Implement metric drill-down (click any metric → view raw response text and extraction details)
-- [ ] 5.7 Implement score breakdown view (show 4-factor contribution for any visibility score)
+- [x] 5.6 Implement metric drill-down (click any metric → view raw response text and extraction details) _(DONE 2026-06-07 — `/dashboard/evidence/[executionId]`, raw response with highlighted mentions + classified citations; prompt-table scores link to it. Live + validated. Req 19.2, 7.5.)_
+- [x] 5.7 Implement score breakdown view (show 4-factor contribution for any visibility score) _(DONE 2026-06-07 — 4-factor weighted breakdown on the evidence page via getScoreBreakdown(). Req 19.4.)_
 - [ ] 5.8 Implement recommendations panel (evidence, action, impact level, confidence, ordered by impact)
 - [ ] 5.9 Implement "significant shift" and "within normal variance" indicators on score changes
 - [ ] 5.10 Implement CSV export (all visible metrics + prompt-level data, async generation for large datasets)
