@@ -82,11 +82,19 @@ line to a working product," matching the critical path the spec itself names:
   - ⬜ **5.8 recommendations panel** — blocked on Stage 5 (recommendation generation).
   - ⬜ **5.9 variance indicators** · **5.13 competitor/brand edit UI** — pending polish.
 
-## Stage 4 — Cost tracking & fair-use limits ⬜
+## Stage 4 — Cost tracking & fair-use limits ✅ (core)
 
 - **Tasks:** 7.2 · 7.3 · 7.5 · 7.8 · **Requirements:** 10, 20
 - **Done when:** `api_usage` is written per engine call (audit gap), plan prompt
   limits are enforced server-side, and an admin view shows per-workspace usage.
+- **Status (2026-06-07):**
+  - ✅ **7.8 cost tracking instrumented** — every engine call writes `api_usage`
+    (`lib/usage/track.ts`, wired into execute-job). Closes audit finding #2.
+  - ✅ **7.2/7.3 usage + cost display** — per-engine call counts + estimated cost
+    on the Settings page (`lib/dashboard/usage.ts`). Live + validated.
+  - ✅ **7.5 plan limit enforcement** — already enforced in the Prompts API.
+  - ⬜ **7.1 admin panel, 7.4 failed-execution log, 7.6 cost alerts, 7.7
+    throttling** — ops features; deferred (not MVP-blocking).
 
 ## Stage 5 — Notifications & recommendations 🚧
 

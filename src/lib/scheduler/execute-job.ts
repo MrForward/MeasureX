@@ -24,6 +24,7 @@ import { engineRegistry } from '@/lib/engines/registry';
 import { engineRateLimiterRegistry } from '@/lib/engines/rate-limiter';
 import { executeWithRetry } from '@/lib/engines/retry';
 import { isDemoMode, buildDemoResponse } from '@/lib/engines/demo-mode';
+import { trackApiUsage } from '@/lib/usage/track';
 import { storeRawResponse } from '@/lib/storage/r2';
 import type { StandardizedResponse } from '@/lib/engines/types';
 import {
@@ -179,6 +180,9 @@ export async function executeJob(payload: ExecutionJobPayload): Promise<ExecuteJ
             storageResult.objectKey,
             storageResult.checksum,
         );
+
+        // Record API usage + estimated cost for this engine call.
+        await trackApiUsage(workspaceId, engine);
 
         // Increment run's successful counter
         await incrementRunCounter(runId, 'successful');

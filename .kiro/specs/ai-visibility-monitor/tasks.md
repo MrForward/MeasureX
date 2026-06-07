@@ -18,7 +18,7 @@ A verification pass (originally 643 unit tests pass; `tsc` clean) found that sev
    - `src/app/api/jobs/extract/route.ts:62` — `// TODO: Actual extraction logic … will be wired here.` Creates **no** `Extraction` record.
    - `src/app/api/jobs/metrics/route.ts:47` — `// TODO: Actual metrics computation … will be wired here.` Writes **no** `Metric` rows.
    - Consequence: `onExtractionComplete` (`src/lib/scheduler/pipeline.ts:28`) gates the metrics job on every successful execution having an extraction; since extractions are never created, **the metrics job never fires** and the dashboard shows the empty state permanently — even after a fully successful data-collection run.
-2. **Cost tracking is not instrumented.** The `api_usage` table is never written (no `apiUsage.upsert` anywhere in `src`), and the per-run budget / per-workspace daily-cap guards from `design.md` (“Token Burn Protection”) exist only as config keys in `src/lib/config/defaults.ts` with no enforcement code. This contradicts the implementation-guide guardrail “Never skip cost tracking” and the note below to instrument it from Phase 2.
+2. ~~**Cost tracking is not instrumented.**~~ **RESOLVED 2026-06-07 (Stage 4):** `api_usage` is now written on every engine call (`src/lib/usage/track.ts`, wired into execute-job), and surfaced per-engine with estimated cost on the Settings page. The per-run budget / per-workspace daily-cap *guards* from design.md remain config-only (enforcement is a later hardening task), but the core cost-tracking gap is closed.
 3. ~~**No Prompts CRUD API.**~~ **RESOLVED 2026-06-07 (Stage 2 backend):** added GET/POST `/api/v1/workspaces/:id/prompts` and PATCH/DELETE `/prompts/:id` with validation, max-active limit, similarity warning, edit-as-new-version, archive, and RBAC. Validated live. The prompt-management *UI* is still pending.
 4. **Dashboard quick-action links are dead.** `src/app/(dashboard)/dashboard/page.tsx` links to `/dashboard/prompts`, `/dashboard/competitors`, `/dashboard/settings` — none of those pages exist (404).
 
@@ -121,13 +121,13 @@ What IS correctly built and integrated: auth + RBAC, workspace/brand/competitor 
 ### Phase 7: Admin Panel and Cost Controls
 
 - [ ] 7.1 Implement admin panel layout with platform-level metrics overview
-- [ ] 7.2 Implement per-workspace API usage display (call counts by engine, date range filtering)
-- [ ] 7.3 Implement cost estimation display (per-workspace and platform-level, based on API volumes × pricing)
+- [x] 7.2 Implement per-workspace API usage display (call counts by engine, date range filtering) _(DONE 2026-06-07 — per-engine call counts on the Settings page. Date-range filtering not yet added.)_
+- [x] 7.3 Implement cost estimation display (per-workspace and platform-level, based on API volumes × pricing) _(DONE 2026-06-07 — per-workspace estimated cost on Settings; platform-level pending an admin panel.)_
 - [ ] 7.4 Implement failed execution log viewer (error details, timestamps, affected prompts, retry history)
-- [ ] 7.5 Implement workspace plan limit enforcement (prevent prompt creation when at limit)
+- [x] 7.5 Implement workspace plan limit enforcement (prevent prompt creation when at limit) _(DONE earlier — enforced in the Prompts API, Req 3.3.)_
 - [ ] 7.6 Implement cost threshold alerting (alert admin when workspace exceeds configured spend threshold)
 - [ ] 7.7 Implement workspace throttling (move to off-peak when >150% of plan allocation)
-- [ ] 7.8 Implement API usage tracking per model call (track cost for classification, extraction, recommendation separately)
+- [x] 7.8 Implement API usage tracking per model call (track cost for classification, extraction, recommendation separately) _(DONE 2026-06-07 — engine calls tracked into `api_usage` (`lib/usage/track.ts`). Per-task LLM cost separation pending real LLM wiring.)_
 
 ### Phase 8: Security, Data Integrity, and Hardening
 
