@@ -12,6 +12,7 @@ import {
 import { NavItem } from './nav-item';
 import { WorkspaceSwitcher } from './workspace-switcher';
 import { UserMenu } from './user-menu';
+import { NotificationBell } from './notification-bell';
 import type { DashboardUser, WorkspaceSummary } from './types';
 
 interface SidebarProps {
@@ -40,8 +41,8 @@ export function Sidebar({ workspaces, activeWorkspaceId, user }: SidebarProps) {
             aria-label="Primary"
             className="hidden md:flex w-60 flex-shrink-0 flex-col border-r border-slate-200 bg-white"
         >
-            {/* Logo */}
-            <div className="flex h-16 items-center px-4">
+            {/* Logo + notifications */}
+            <div className="flex h-16 items-center justify-between px-4">
                 <Link
                     href="/dashboard"
                     aria-label="MeasureX home"
@@ -55,6 +56,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, user }: SidebarProps) {
                         MeasureX
                     </span>
                 </Link>
+                <NotificationBell />
             </div>
 
             {/* Workspace switcher */}

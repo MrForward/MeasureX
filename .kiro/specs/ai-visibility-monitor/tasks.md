@@ -112,7 +112,7 @@ What IS correctly built and integrated: auth + RBAC, workspace/brand/competitor 
 - [ ] 6.2 Implement baseline completion email (summary of initial visibility metrics + dashboard link)
 - [ ] 6.3 Implement weekly digest email (Visibility_Score changes, top recommendations, opt-in)
 - [ ] 6.4 Implement failure alert notifications (>50% execution failure → email + in-app alert to owners)
-- [ ] 6.5 Implement in-app notification system (bell icon, unread count, notification list)
+- [x] 6.5 Implement in-app notification system (bell icon, unread count, notification list) _(DONE 2026-06-07 — sidebar bell + unread badge + dropdown, read API, run-completion notifications. Also added the missing `/api/jobs/notifications` handler that closed the pipeline's dangling 404. Live + validated.)_
 - [x] 6.6 Implement recommendation generation pipeline using Claude Sonnet/GPT-4o with structured output _(DONE 2026-06-07 — wired the recommendations job to a rule-based, evidence-backed generator (works in DEMO_MODE without LLM keys); LLM rewrite of action text is a later enhancement.)_
 - [x] 6.7 Implement recommendation prioritization by impact level (high → medium → low) _(DONE 2026-06-07 — sorted by impact then confidence, capped at top 6.)_
 - [ ] 6.8 Implement targeted recommendations when competitor exceeds brand by >20 points on a prompt _(needs per-prompt competitor visibility scores, not yet persisted)_

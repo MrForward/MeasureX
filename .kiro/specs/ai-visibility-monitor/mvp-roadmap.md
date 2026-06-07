@@ -105,8 +105,14 @@ line to a working product," matching the critical path the spec itself names:
     `lib/dashboard/recommendations.ts`, `components/dashboard/recommendations-panel.tsx`)
   - ⬜ **6.8 targeted competitor recs** (competitor > brand by >20 pts on a prompt)
     — needs per-prompt competitor visibility scores (not yet persisted).
-  - ⬜ **Notifications (6.1–6.5, 6.9)** — `/api/jobs/notifications` handler, email
-    (Resend), in-app bell, digest/baseline/failure alerts, preferences. Pending.
+  - ✅ **In-app notifications (6.5) + pipeline tail** — built the missing
+    `/api/jobs/notifications` handler (closed the dangling 404); run-completion
+    notifications for owners (with partial-failure summary, Req 18.4); read API
+    (list + unread count + mark-read); notification bell in the sidebar. Live +
+    validated. (`lib/notifications/create.ts`, `api/jobs/notifications/route.ts`,
+    `api/v1/notifications/*`, `components/dashboard/notification-bell.tsx`)
+  - ⬜ **Email (6.1–6.4) + digest/baseline + preferences (6.9)** — Resend-based
+    email delivery, weekly digest, opt-in. Pending (in-app foundation in place).
 
 ---
 
