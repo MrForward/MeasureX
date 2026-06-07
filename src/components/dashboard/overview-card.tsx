@@ -45,6 +45,14 @@ export interface OverviewCardProps {
     change?: WowChange | null;
     /** Override the change's own classification (rarely needed). */
     classification?: ChangeClassification;
+    /**
+     * When set, renders a thin progress bar under the value.
+     * The value should be a number representing the progress (0–max).
+     * `progressMax` defaults to 100.
+     */
+    showProgress?: boolean;
+    /** Maximum value for the progress bar (default 100). */
+    progressMax?: number;
     /** Forwarded to the outer Card for layout overrides. */
     className?: string;
 }
@@ -55,9 +63,17 @@ export function OverviewCard({
     unit,
     change,
     classification,
+    showProgress,
+    progressMax = 100,
     className,
 }: OverviewCardProps) {
     const ariaLabel = buildAriaLabel(label, value, unit, change);
+
+    // Compute progress width when enabled
+    const progressPercent =
+        showProgress && typeof value === 'number'
+            ? Math.min(100, Math.max(0, (value / progressMax) * 100))
+            : 0;
 
     return (
         <Card
@@ -78,6 +94,20 @@ export function OverviewCard({
                     </span>
                 )}
             </div>
+            {showProgress && (
+                <div
+                    className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100"
+                    role="progressbar"
+                    aria-valuenow={typeof value === 'number' ? value : 0}
+                    aria-valuemin={0}
+                    aria-valuemax={progressMax}
+                >
+                    <div
+                        className="h-full rounded-full bg-brand-gradient transition-all duration-500"
+                        style={{ width: `${progressPercent}%` }}
+                    />
+                </div>
+            )}
             <div className="mt-3 min-h-[1.5rem]">
                 {change ? (
                     <TrendBadge

@@ -19,6 +19,9 @@ vi.mock('@/lib/db', () => ({
         execution: {
             count: vi.fn(),
         },
+        run: {
+            updateMany: vi.fn(),
+        },
     },
 }));
 
@@ -40,6 +43,7 @@ import { publishJob } from '@/lib/queue/qstash';
 // ── Typed mock helpers ────────────────────────────────────────────────────────
 
 const mockExecutionCount = db.execution.count as ReturnType<typeof vi.fn>;
+const mockRunUpdateMany = db.run.updateMany as ReturnType<typeof vi.fn>;
 const mockPublishJob = publishJob as ReturnType<typeof vi.fn>;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -78,16 +82,31 @@ describe('onExtractionComplete', () => {
         vi.clearAllMocks();
     });
 
-    it('publishes metrics job when all extractions are done', async () => {
+    it('publishes metrics job when all extractions are done and the claim is won', async () => {
         mockExecutionCount.mockResolvedValue(0); // all extracted
+        mockRunUpdateMany.mockResolvedValue({ count: 1 }); // won the claim
         mockPublishJob.mockResolvedValue(undefined);
 
         await onExtractionComplete('exec-1', 'ws-1', 'run-1');
 
+        // Claims the metrics step atomically (only when not yet started).
+        expect(mockRunUpdateMany).toHaveBeenCalledWith({
+            where: { id: 'run-1', metricsStartedAt: null },
+            data: { metricsStartedAt: expect.any(Date) },
+        });
         expect(mockPublishJob).toHaveBeenCalledWith('metrics', {
             runId: 'run-1',
             workspaceId: 'ws-1',
         });
+    });
+
+    it('does NOT publish metrics twice when the claim was already taken (fire-once)', async () => {
+        mockExecutionCount.mockResolvedValue(0); // all extracted
+        mockRunUpdateMany.mockResolvedValue({ count: 0 }); // another extraction already claimed
+
+        await onExtractionComplete('exec-1', 'ws-1', 'run-1');
+
+        expect(mockPublishJob).not.toHaveBeenCalled();
     });
 
     it('does NOT publish metrics job when extractions are still pending', async () => {
@@ -95,6 +114,7 @@ describe('onExtractionComplete', () => {
 
         await onExtractionComplete('exec-1', 'ws-1', 'run-1');
 
+        expect(mockRunUpdateMany).not.toHaveBeenCalled();
         expect(mockPublishJob).not.toHaveBeenCalled();
     });
 });

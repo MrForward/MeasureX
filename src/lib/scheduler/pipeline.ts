@@ -53,11 +53,22 @@ export async function onExtractionComplete(
     runId: string,
 ): Promise<void> {
     const allDone = await areAllExtractionsComplete(runId);
+    if (!allDone) {
+        // Still waiting on other extractions — do nothing.
+        return;
+    }
 
-    if (allDone) {
+    // Many extractions can finish concurrently and each would see "all done".
+    // Atomically claim the metrics step (set metricsStartedAt only if still
+    // null) so the metrics job is published exactly once per run.
+    const claim = await db.run.updateMany({
+        where: { id: runId, metricsStartedAt: null },
+        data: { metricsStartedAt: new Date() },
+    });
+
+    if (claim.count === 1) {
         await publishJob('metrics', { runId, workspaceId });
     }
-    // If not all done, do nothing — wait for remaining extractions
 }
 
 /**

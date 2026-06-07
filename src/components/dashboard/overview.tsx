@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card';
 import { OverviewCard } from './overview-card';
 import { loadOverviewData } from '@/lib/dashboard/overview';
+import { formatNumber, formatPercent as formatPercentUtil } from '@/lib/format';
 
 interface OverviewProps {
     workspaceId: string;
@@ -44,15 +45,17 @@ export async function Overview({ workspaceId }: OverviewProps) {
                     value={data.visibilityScore}
                     unit="/100"
                     change={data.wowChange.visibilityScore}
+                    showProgress
+                    progressMax={100}
                 />
                 <OverviewCard
                     label="Total Mentions"
-                    value={data.totalMentions}
+                    value={formatNumber(data.totalMentions)}
                     change={data.wowChange.totalMentions}
                 />
                 <OverviewCard
                     label="Citation Rate"
-                    value={formatPercentValue(data.citationRate)}
+                    value={formatPercentUtil(data.citationRate)}
                     unit="%"
                     change={data.wowChange.citationRate}
                 />
@@ -153,12 +156,7 @@ function ActionLink({ href, icon, children }: ActionLinkProps) {
 }
 
 /** Strip a trailing ".0" so a clean integer reads as "50%" not "50.0%". */
-function formatPercentValue(rate: number): string {
-    if (Number.isInteger(rate)) {
-        return rate.toString();
-    }
-    return rate.toFixed(1);
-}
+// Note: Using shared formatPercent from @/lib/format instead of local helper.
 
 /**
  * Render a Date as a coarse "X minutes/hours/days ago" string.

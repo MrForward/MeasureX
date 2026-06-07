@@ -23,7 +23,10 @@ import { EngineError } from '@/lib/engines/types';
 import { engineRegistry } from '@/lib/engines/registry';
 import { engineRateLimiterRegistry } from '@/lib/engines/rate-limiter';
 import { executeWithRetry } from '@/lib/engines/retry';
+import { isDemoMode, buildDemoResponse } from '@/lib/engines/demo-mode';
+import { trackApiUsage } from '@/lib/usage/track';
 import { storeRawResponse } from '@/lib/storage/r2';
+import type { StandardizedResponse } from '@/lib/engines/types';
 import {
     createExecution,
     markExecutionSuccess,
@@ -57,8 +60,9 @@ export async function executeJob(payload: ExecutionJobPayload): Promise<ExecuteJ
     const { runId, promptId, engine, workspaceId } = payload;
 
     // ── 1. Kill switch check ──────────────────────────────────────────────────
+    // Redis may be absent in local dev (no Upstash) — treat that as "not killed".
     try {
-        const killSwitch = await redis.get<boolean>('platform:kill_switch');
+        const killSwitch = await redis?.get<boolean>('platform:kill_switch');
         if (killSwitch === true) {
             return { status: 'skipped', error: 'kill_switch_active' };
         }
@@ -66,27 +70,42 @@ export async function executeJob(payload: ExecutionJobPayload): Promise<ExecuteJ
         // Redis unavailable — fail open (continue processing)
     }
 
+    const demoMode = isDemoMode();
+
     // ── 2. Engine adapter lookup ──────────────────────────────────────────────
+    // In demo mode the adapter is not needed (responses come from fixtures), and
+    // adapters only auto-register when their API key is present — so a demo run
+    // with no keys legitimately has an empty registry. Only require an adapter
+    // for real runs.
     const adapter = engineRegistry.find(engine);
-    if (!adapter) {
+    if (!adapter && !demoMode) {
         return { status: 'failed', error: 'engine_not_registered' };
     }
 
     // ── 3. Circuit breaker check ──────────────────────────────────────────────
-    const status = adapter.getStatus();
-    if (status.circuitBreakerOpen) {
-        // Create execution record and mark as skipped
-        const executionId = await createExecution({ runId, promptId, engine, workspaceId });
-        await markRunInProgress(runId);
-        await markExecutionSkipped(executionId, 'circuit_breaker_open');
-        await incrementRunCounter(runId, 'skipped');
-        await checkRunCompletion(runId);
-        return { status: 'skipped', executionId, error: 'circuit_breaker_open' };
+    // Demo mode bypasses the breaker — fixtures never fail, so a real engine's
+    // open circuit must not block a demo run.
+    if (!demoMode && adapter) {
+        const status = adapter.getStatus();
+        if (status.circuitBreakerOpen) {
+            // Use the pre-created execution (or create one if not provided).
+            const executionId =
+                payload.executionId ??
+                (await createExecution({ runId, promptId, engine, workspaceId }));
+            await markRunInProgress(runId);
+            await markExecutionSkipped(executionId, 'circuit_breaker_open');
+            await incrementRunCounter(runId, 'skipped');
+            await checkRunCompletion(runId);
+            return { status: 'skipped', executionId, error: 'circuit_breaker_open' };
+        }
     }
 
     // ── 4. Rate limiting ──────────────────────────────────────────────────────
-    const rateLimits = adapter.getRateLimits();
-    await engineRateLimiterRegistry.waitAndProceed(engine, rateLimits);
+    // Skipped in demo mode — no real API quota is consumed.
+    if (!demoMode && adapter) {
+        const rateLimits = adapter.getRateLimits();
+        await engineRateLimiterRegistry.waitAndProceed(engine, rateLimits);
+    }
 
     // ── 5. Build PromptInput from DB ──────────────────────────────────────────
     const prompt = await db.prompt.findUnique({
@@ -106,8 +125,10 @@ export async function executeJob(payload: ExecutionJobPayload): Promise<ExecuteJ
         workspaceId,
     };
 
-    // ── 6. Create execution record ────────────────────────────────────────────
-    const executionId = await createExecution({ runId, promptId, engine, workspaceId });
+    // ── 6. Resolve execution record (reuse pre-created, else create) ──────────
+    const executionId =
+        payload.executionId ??
+        (await createExecution({ runId, promptId, engine, workspaceId }));
 
     // ── 6a. Transition run to in_progress (idempotent) ────────────────────────
     await markRunInProgress(runId);
@@ -121,21 +142,29 @@ export async function executeJob(payload: ExecutionJobPayload): Promise<ExecuteJ
         attemptNumber: 1, // executeWithRetry manages attempt numbers internally
     };
 
-    // ── 8. Execute with retry ─────────────────────────────────────────────────
+    // ── 8. Execute (demo fixture or real engine with retry) ───────────────────
     try {
-        const result = await executeWithRetry(adapter, promptInput, context);
+        let response: StandardizedResponse;
 
-        if (!result.success) {
-            // Circuit-blocked result from retry logic
-            await markExecutionSkipped(executionId, result.error.message);
-            await incrementRunCounter(runId, 'skipped');
-            await checkRunCompletion(runId);
-            return { status: 'skipped', executionId, error: result.error.message };
+        if (demoMode) {
+            // Deterministic canned response — no network, no credits.
+            response = buildDemoResponse(engine, promptInput);
+        } else {
+            // adapter is guaranteed non-null here (we returned early above when
+            // it was missing on a non-demo run).
+            const result = await executeWithRetry(adapter!, promptInput, context);
+
+            if (!result.success) {
+                // Circuit-blocked result from retry logic
+                await markExecutionSkipped(executionId, result.error.message);
+                await incrementRunCounter(runId, 'skipped');
+                await checkRunCompletion(runId);
+                return { status: 'skipped', executionId, error: result.error.message };
+            }
+            response = result.response;
         }
 
         // ── 9. Success path ───────────────────────────────────────────────────
-        const { response } = result;
-
         // Store raw response to R2
         const storageResult = await storeRawResponse({
             executionId,
@@ -151,6 +180,9 @@ export async function executeJob(payload: ExecutionJobPayload): Promise<ExecuteJ
             storageResult.objectKey,
             storageResult.checksum,
         );
+
+        // Record API usage + estimated cost for this engine call.
+        await trackApiUsage(workspaceId, engine);
 
         // Increment run's successful counter
         await incrementRunCounter(runId, 'successful');

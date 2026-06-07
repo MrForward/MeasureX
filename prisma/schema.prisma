@@ -183,6 +183,9 @@ model Run {
   successful      Int         @default(0)
   failed          Int         @default(0)
   skipped         Int         @default(0)
+  // Set atomically when the metrics step is first triggered, so the metrics
+  // job fires exactly once even when many extractions complete concurrently.
+  metricsStartedAt DateTime?  @map("metrics_started_at")
   createdAt       DateTime    @default(now()) @map("created_at")
 
   workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -201,6 +204,7 @@ model Execution {
   engine          String
   status          String      @default("pending") // pending | success | failed | skipped
   rawResponseRef  String?     @map("raw_response_ref") // R2 object key
+  rawResponseBody String?     @map("raw_response_body") @db.Text // DB fallback when R2 is unavailable (dev/local)
   responseChecksum String?    @map("response_checksum")
   modelVersion    String?     @map("model_version")
   executionTimeMs Int?        @map("execution_time_ms")

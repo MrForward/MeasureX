@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { MetricsJobPayload } from '@/lib/queue/types';
+import { computeRunMetrics } from '@/lib/metrics/compute-run-metrics';
 import { onMetricsComplete } from '@/lib/scheduler/pipeline';
 
 /**
@@ -44,9 +45,11 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     try {
         console.log(`[metrics] Metrics job received for run=${runId}`);
 
-        // TODO: Actual metrics computation (Phase 3) will be wired here.
+        // Compute and persist per-prompt-engine metric rows for the run.
+        const persisted = await computeRunMetrics(runId, workspaceId);
+        console.log(`[metrics] run=${runId} persisted ${persisted} metric row(s)`);
 
-        // Trigger pipeline continuation
+        // Trigger pipeline continuation (publishes recommendations job).
         await onMetricsComplete(runId, workspaceId);
 
         return NextResponse.json(

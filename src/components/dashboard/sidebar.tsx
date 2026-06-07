@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import {
@@ -10,6 +12,7 @@ import {
 import { NavItem } from './nav-item';
 import { WorkspaceSwitcher } from './workspace-switcher';
 import { UserMenu } from './user-menu';
+import { NotificationBell } from './notification-bell';
 import type { DashboardUser, WorkspaceSummary } from './types';
 
 interface SidebarProps {
@@ -21,9 +24,10 @@ interface SidebarProps {
 /**
  * Sidebar — primary navigation shell for the dashboard.
  *
- * Server component (no client-only state at this level). Inner pieces that
- * need state — workspace switcher, user menu, nav active state — are their
- * own client components.
+ * Client component — it passes lucide icon components to the (client) NavItem,
+ * which a Server Component cannot do (functions/components aren't serializable
+ * across the RSC boundary). Its props (workspaces, user) are all serializable,
+ * so the layout can still fetch them on the server and pass them down.
  *
  * Layout:
  * - Logo wordmark
@@ -37,8 +41,8 @@ export function Sidebar({ workspaces, activeWorkspaceId, user }: SidebarProps) {
             aria-label="Primary"
             className="hidden md:flex w-60 flex-shrink-0 flex-col border-r border-slate-200 bg-white"
         >
-            {/* Logo */}
-            <div className="flex h-16 items-center px-4">
+            {/* Logo + notifications */}
+            <div className="flex h-16 items-center justify-between px-4">
                 <Link
                     href="/dashboard"
                     aria-label="MeasureX home"
@@ -52,6 +56,7 @@ export function Sidebar({ workspaces, activeWorkspaceId, user }: SidebarProps) {
                         MeasureX
                     </span>
                 </Link>
+                <NotificationBell />
             </div>
 
             {/* Workspace switcher */}

@@ -262,12 +262,14 @@ describe('scheduleWorkspaceRun', () => {
             promptId: 'p-1',
             engine: 'chatgpt',
             workspaceId: 'ws-1',
+            executionId: 'exec-id',
         }, 0);
         expect(mockPublishJob).toHaveBeenCalledWith('execute', {
             runId: 'run-1',
             promptId: 'p-1',
             engine: 'perplexity',
             workspaceId: 'ws-1',
+            executionId: 'exec-id',
         }, 0);
     });
 });
