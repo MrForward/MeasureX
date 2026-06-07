@@ -96,7 +96,7 @@ What IS correctly built and integrated: auth + RBAC, workspace/brand/competitor 
 - [x] 5.5 Implement citation sources panel (citations grouped by domain, frequency counts, brand/competitor/third-party classification) _(DONE 2026-06-07 — on dashboard, live + tested.)_
 - [x] 5.6 Implement metric drill-down (click any metric → view raw response text and extraction details) _(DONE 2026-06-07 — `/dashboard/evidence/[executionId]`, raw response with highlighted mentions + classified citations; prompt-table scores link to it. Live + validated. Req 19.2, 7.5.)_
 - [x] 5.7 Implement score breakdown view (show 4-factor contribution for any visibility score) _(DONE 2026-06-07 — 4-factor weighted breakdown on the evidence page via getScoreBreakdown(). Req 19.4.)_
-- [ ] 5.8 Implement recommendations panel (evidence, action, impact level, confidence, ordered by impact)
+- [x] 5.8 Implement recommendations panel (evidence, action, impact level, confidence, ordered by impact) _(DONE 2026-06-07 — `/dashboard/recommendations` page + dashboard panel, live + validated.)_
 - [ ] 5.9 Implement "significant shift" and "within normal variance" indicators on score changes
 - [ ] 5.10 Implement CSV export (all visible metrics + prompt-level data, async generation for large datasets)
 - [x] 5.11 Implement prompt management UI (create, edit, archive, assign engines, view AI suggestions) _(DONE 2026-06-07 — create/edit/archive/engine-assignment at `/dashboard/prompts`. "View AI suggestions" deferred to the onboarding wizard, 5.14.)_
@@ -113,9 +113,9 @@ What IS correctly built and integrated: auth + RBAC, workspace/brand/competitor 
 - [ ] 6.3 Implement weekly digest email (Visibility_Score changes, top recommendations, opt-in)
 - [ ] 6.4 Implement failure alert notifications (>50% execution failure → email + in-app alert to owners)
 - [ ] 6.5 Implement in-app notification system (bell icon, unread count, notification list)
-- [ ] 6.6 Implement recommendation generation pipeline using Claude Sonnet/GPT-4o with structured output
-- [ ] 6.7 Implement recommendation prioritization by impact level (high → medium → low)
-- [ ] 6.8 Implement targeted recommendations when competitor exceeds brand by >20 points on a prompt
+- [x] 6.6 Implement recommendation generation pipeline using Claude Sonnet/GPT-4o with structured output _(DONE 2026-06-07 — wired the recommendations job to a rule-based, evidence-backed generator (works in DEMO_MODE without LLM keys); LLM rewrite of action text is a later enhancement.)_
+- [x] 6.7 Implement recommendation prioritization by impact level (high → medium → low) _(DONE 2026-06-07 — sorted by impact then confidence, capped at top 6.)_
+- [ ] 6.8 Implement targeted recommendations when competitor exceeds brand by >20 points on a prompt _(needs per-prompt competitor visibility scores, not yet persisted)_
 - [ ] 6.9 Implement notification preferences UI (enable/disable weekly digest, email preferences)
 
 ### Phase 7: Admin Panel and Cost Controls

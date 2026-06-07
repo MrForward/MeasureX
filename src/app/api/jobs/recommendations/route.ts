@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { RecommendationJobPayload } from '@/lib/queue/types';
+import { computeRunRecommendations } from '@/lib/recommendations/run-recommendations';
 import { onRecommendationsComplete } from '@/lib/scheduler/pipeline';
 
 /**
@@ -42,11 +43,10 @@ async function handler(request: NextRequest): Promise<NextResponse> {
     }
 
     try {
-        console.log(`[recommendations] Recommendations job received for run=${runId}`);
+        const count = await computeRunRecommendations(runId, workspaceId);
+        console.log(`[recommendations] run=${runId} generated ${count} recommendation(s)`);
 
-        // TODO: Actual recommendation generation (Phase 6) will be wired here.
-
-        // Trigger pipeline continuation
+        // Trigger pipeline continuation (notifications stage).
         await onRecommendationsComplete(runId, workspaceId);
 
         return NextResponse.json(

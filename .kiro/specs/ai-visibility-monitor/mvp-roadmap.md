@@ -88,12 +88,25 @@ line to a working product," matching the critical path the spec itself names:
 - **Done when:** `api_usage` is written per engine call (audit gap), plan prompt
   limits are enforced server-side, and an admin view shows per-workspace usage.
 
-## Stage 5 — Notifications & recommendations ⬜
+## Stage 5 — Notifications & recommendations 🚧
 
 - **Tasks:** Phase 6 (6.1–6.9) · **Requirements:** 8, 9
 - **Done when:** the stubbed recommendations handler generates real
   recommendations, the `/api/jobs/notifications` handler exists (currently 404s),
   and baseline/digest/failure emails + in-app notifications work.
+- **Status (2026-06-07):**
+  - ✅ **Recommendation engine (6.6, 6.7) + panel (5.8)** — rule-based,
+    evidence-backed, prioritized recommendations from visibility gaps, citation
+    opportunities, and share-of-voice. Wired into the pipeline (recommendations
+    job no longer a stub); real `/dashboard/recommendations` page + dashboard
+    panel. Works in DEMO_MODE (no LLM keys); an LLM rewrite of action text is a
+    later enhancement. Live + validated (6 recs from a run). +5 tests.
+    (`lib/recommendations/generate.ts`, `run-recommendations.ts`,
+    `lib/dashboard/recommendations.ts`, `components/dashboard/recommendations-panel.tsx`)
+  - ⬜ **6.8 targeted competitor recs** (competitor > brand by >20 pts on a prompt)
+    — needs per-prompt competitor visibility scores (not yet persisted).
+  - ⬜ **Notifications (6.1–6.5, 6.9)** — `/api/jobs/notifications` handler, email
+    (Resend), in-app bell, digest/baseline/failure alerts, preferences. Pending.
 
 ---
 

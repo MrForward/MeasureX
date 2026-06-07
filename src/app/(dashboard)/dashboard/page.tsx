@@ -19,6 +19,8 @@ import { PromptTable } from '@/components/dashboard/prompt-table';
 import { loadPromptBreakdown } from '@/lib/dashboard/prompt-breakdown';
 import { CitationSourcesPanel } from '@/components/dashboard/citation-sources';
 import { loadCitationSources } from '@/lib/dashboard/citation-sources';
+import { RecommendationsPanel } from '@/components/dashboard/recommendations-panel';
+import { loadRecommendations } from '@/lib/dashboard/recommendations';
 
 export const metadata: Metadata = {
     title: 'Dashboard — MeasureX',
@@ -94,6 +96,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </Suspense>
 
             <Suspense fallback={null}>
+                <Recommendations workspaceId={activeWorkspaceId} />
+            </Suspense>
+
+            <Suspense fallback={null}>
                 <PromptPerformance workspaceId={activeWorkspaceId} />
             </Suspense>
 
@@ -153,6 +159,18 @@ async function CitationSources({ workspaceId }: { workspaceId: string }) {
         return null;
     }
     return <CitationSourcesPanel sources={data.sources} total={data.total} />;
+}
+
+/**
+ * Top recommendations for the latest run (Req 8.2/8.3), highest-impact first.
+ * Renders nothing until a run has produced recommendations.
+ */
+async function Recommendations({ workspaceId }: { workspaceId: string }) {
+    const data = await loadRecommendations(workspaceId);
+    if (!data.hasData) {
+        return null;
+    }
+    return <RecommendationsPanel rows={data.rows} heading />;
 }
 
 /**
