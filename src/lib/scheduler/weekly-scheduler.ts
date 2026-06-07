@@ -170,6 +170,8 @@ export async function scheduleWorkspaceRun(
                 promptId: prompt.id,
                 engine: engine as EngineId,
                 workspaceId,
+                // Reuse this pre-created execution in the worker (no double-create).
+                executionId,
             });
 
             totalExecutions++;

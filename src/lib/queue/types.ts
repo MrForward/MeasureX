@@ -22,6 +22,14 @@ export interface ExecutionJobPayload {
     engine: EngineId;
     /** The workspace that owns this run. */
     workspaceId: string;
+    /**
+     * The pre-created execution record this job should process. The scheduler /
+     * run trigger creates all execution rows (status 'pending') up front so the
+     * completion check waits for the full set; the worker reuses this id rather
+     * than creating a second row. Optional for backward compatibility — when
+     * absent, executeJob creates the row itself.
+     */
+    executionId?: string;
 }
 
 /** Trigger entity extraction on a completed execution. */

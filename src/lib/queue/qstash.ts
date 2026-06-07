@@ -21,14 +21,86 @@ const globalForQStash = globalThis as unknown as {
     qstash: Client | undefined;
 };
 
+/** True when QStash credentials are present (production / configured envs). */
+const qstashConfigured = Boolean(process.env.QSTASH_TOKEN);
+
+/**
+ * QStash client — only constructed when a token is configured. In local dev
+ * (no token) we deliver jobs in-process instead (see publishJob), so the client
+ * is never needed and we avoid constructing it with an undefined token.
+ */
 export const qstash =
     globalForQStash.qstash ??
-    new Client({
-        token: process.env.QSTASH_TOKEN!,
-    });
+    (qstashConfigured ? new Client({ token: process.env.QSTASH_TOKEN! }) : undefined);
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' && qstash) {
     globalForQStash.qstash = qstash;
+}
+
+/** Max delay (seconds) we actually wait for in local in-process delivery. */
+const LOCAL_MAX_DELAY_SECONDS = 2;
+
+/**
+ * Max concurrent in-process job deliveries in local dev.
+ *
+ * QStash paces delivery; our shim would otherwise fire an entire run's jobs
+ * (execute + extract + metrics) at once, stampeding a free-tier database's
+ * connection pool and causing transaction timeouts. Bounding concurrency keeps
+ * local runs reliable. Real (QStash-backed) deploys are unaffected.
+ */
+const MAX_LOCAL_CONCURRENCY = 4;
+
+let activeLocal = 0;
+const localQueue: Array<() => void> = [];
+
+/** Start queued deliveries up to the concurrency cap. */
+function pumpLocal(): void {
+    while (activeLocal < MAX_LOCAL_CONCURRENCY && localQueue.length > 0) {
+        const job = localQueue.shift()!;
+        activeLocal++;
+        job();
+    }
+}
+
+/**
+ * Deliver a job in-process by POSTing to the local route handler.
+ *
+ * QStash delivers jobs by calling a public URL from Upstash's servers, which
+ * cannot reach `http://localhost`. So in local dev we emulate that delivery
+ * with a fetch to our own route, through a bounded-concurrency queue so we
+ * don't overwhelm the database. Errors are logged, never thrown — this mirrors
+ * QStash's async, non-blocking publish semantics.
+ */
+function deliverLocally(url: string, payload: object, delaySeconds?: number): void {
+    const wait =
+        delaySeconds && delaySeconds > 0
+            ? Math.min(delaySeconds, LOCAL_MAX_DELAY_SECONDS) * 1000
+            : 0;
+
+    const job = () => {
+        const doFetch = () =>
+            fetch(url, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+                .catch((err) => {
+                    console.error(`[queue] local in-process delivery failed for ${url}:`, err);
+                })
+                .finally(() => {
+                    activeLocal--;
+                    pumpLocal();
+                });
+
+        if (wait > 0) {
+            setTimeout(doFetch, wait);
+        } else {
+            void doFetch();
+        }
+    };
+
+    localQueue.push(job);
+    pumpLocal();
 }
 
 /**
@@ -57,6 +129,12 @@ export async function publishJob(
             : 'http://localhost:3000');
 
     const url = `${baseUrl}/api/jobs/${topic}`;
+
+    // Local dev (no QStash token): deliver in-process — QStash can't reach localhost.
+    if (!qstashConfigured || !qstash) {
+        deliverLocally(url, payload, delaySeconds);
+        return;
+    }
 
     await qstash.publishJSON({
         url,

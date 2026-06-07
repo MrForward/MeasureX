@@ -111,7 +111,9 @@ function buildObjectKey(workspaceId: string, engine: EngineId, executionId: stri
 /**
  * Store the serialized payload in PostgreSQL as a fallback when R2 is
  * unavailable. Updates the execution record's rawResponseRef with a
- * "db:..." prefix so callers can detect the storage location.
+ * "db:..." prefix so callers can detect the storage location, and writes the
+ * full serialized content to `rawResponseBody` so the extraction stage can
+ * retrieve it later (without R2, this is the only place the raw text lives).
  */
 async function storeInDb(
     executionId: string,
@@ -122,7 +124,7 @@ async function storeInDb(
     try {
         await db.execution.update({
             where: { id: executionId },
-            data: { rawResponseRef: dbKey },
+            data: { rawResponseRef: dbKey, rawResponseBody: content },
         });
     } catch (err) {
         // Best-effort — log but never throw
@@ -271,4 +273,47 @@ export async function verifyChecksum(
 
     const actual = computeChecksum(content);
     return actual === expectedChecksum;
+}
+
+// ── Unified retrieval (R2 or DB fallback) ──────────────────────────────────────
+
+/** The execution fields needed to locate a stored response. */
+export interface StoredResponseSource {
+    rawResponseRef: string | null;
+    rawResponseBody: string | null;
+}
+
+/**
+ * Retrieve the serialized stored-payload JSON for an execution, transparently
+ * handling both backends:
+ *   - "db:" fallback keys → read from the execution's `rawResponseBody` column
+ *   - R2 object keys       → fetched from R2
+ * Returns the JSON string, or null when the content is unavailable.
+ */
+export async function getStoredContent(
+    source: StoredResponseSource,
+): Promise<string | null> {
+    const { rawResponseRef, rawResponseBody } = source;
+    if (!rawResponseRef) return null;
+    if (rawResponseRef.startsWith('db:')) {
+        return rawResponseBody ?? null;
+    }
+    return getRawResponse(rawResponseRef);
+}
+
+/**
+ * Parse a stored-payload JSON string back into its StandardizedResponse.
+ * Returns null when the content is missing or unparseable (design edge case:
+ * unparseable response → mark extraction failed, continue — Requirement 18.3).
+ */
+export function parseStoredResponse(
+    content: string | null,
+): StandardizedResponse | null {
+    if (!content) return null;
+    try {
+        const payload = JSON.parse(content) as StoredPayload;
+        return payload.response ?? null;
+    } catch {
+        return null;
+    }
 }

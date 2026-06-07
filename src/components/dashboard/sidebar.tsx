@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import {
@@ -21,9 +23,10 @@ interface SidebarProps {
 /**
  * Sidebar — primary navigation shell for the dashboard.
  *
- * Server component (no client-only state at this level). Inner pieces that
- * need state — workspace switcher, user menu, nav active state — are their
- * own client components.
+ * Client component — it passes lucide icon components to the (client) NavItem,
+ * which a Server Component cannot do (functions/components aren't serializable
+ * across the RSC boundary). Its props (workspaces, user) are all serializable,
+ * so the layout can still fetch them on the server and pass them down.
  *
  * Layout:
  * - Logo wordmark

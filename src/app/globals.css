@@ -5,22 +5,22 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
+    --foreground: 240 4% 11%; /* OpenOperative near-black #1d1d1f */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
-    --primary: 262 83% 58%;
+    --card-foreground: 240 4% 11%;
+    --primary: 244 76% 59%; /* OpenOperative indigo-violet #5147e6 */
     --primary-foreground: 0 0% 100%;
     --secondary: 240 5% 96%;
     --secondary-foreground: 240 6% 10%;
     --muted: 240 5% 96%;
     --muted-foreground: 240 4% 46%;
-    --accent: 262 83% 96%;
-    --accent-foreground: 262 83% 40%;
+    --accent: 244 76% 96%;
+    --accent-foreground: 244 70% 45%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 262 83% 58%;
+    --ring: 244 76% 59%;
     --radius: 0.75rem;
   }
 }
@@ -38,7 +38,7 @@
 
 @layer utilities {
   .text-gradient {
-    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #5147e6 0%, #a97eff 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;

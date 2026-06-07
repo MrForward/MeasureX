@@ -101,8 +101,9 @@ src/
 ## Color Theme
 
 - **Background:** White (#FFFFFF) dominant — heavy white space
-- **Primary accent:** Purple/violet gradient (from #7C3AED to #4F46E5)
-- **Secondary:** Slate/gray for text and borders
+- **Primary accent:** Indigo-violet (signature #5147E6), gradient #5147E6 → #220296 (adapted from openoperative.com)
+- **Brand scale anchors:** light #D0CBFF, periwinkle #9B93FF, deep #220296
+- **Text:** Near-black #1D1D1F (headings), slate/gray for body and borders
 - **Success:** Green (#10B981)
 - **Warning:** Amber (#F59E0B)
 - **Error:** Red (#EF4444)

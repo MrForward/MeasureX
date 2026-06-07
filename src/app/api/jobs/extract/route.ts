@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ExtractionJobPayload } from '@/lib/queue/types';
 import { db } from '@/lib/db';
+import { extractJob } from '@/lib/extraction/extract-job';
 import { onExtractionComplete } from '@/lib/scheduler/pipeline';
 
 /**
@@ -59,10 +60,16 @@ async function handler(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        // TODO: Actual extraction logic (Phase 3) will be wired here.
-        // For now, the extraction record is created by the extraction pipeline modules.
+        // Run the extraction pipeline and persist the extraction record.
+        // extractJob is deadlock-safe: it ALWAYS writes a terminal extraction
+        // row (even on failure) so the pipeline gate below can resolve.
+        const result = await extractJob(executionId, workspaceId);
+        console.log(
+            `[extract] execution=${executionId} status=${result.status}` +
+                (result.reason ? ` reason=${result.reason}` : ''),
+        );
 
-        // Trigger pipeline continuation
+        // Trigger pipeline continuation (publishes metrics job once all done).
         await onExtractionComplete(executionId, workspaceId, execution.runId);
 
         return NextResponse.json(

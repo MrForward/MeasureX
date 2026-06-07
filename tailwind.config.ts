@@ -10,27 +10,29 @@ const config: Config = {
     theme: {
         extend: {
             colors: {
-                // MeasureX brand colors — purple/violet accent on white
+                // MeasureX brand colors — indigo-violet accent on white.
+                // Palette adapted from openoperative.com (signature #5147e6).
                 brand: {
-                    50: '#f5f3ff',
-                    100: '#ede9fe',
-                    200: '#ddd6fe',
-                    300: '#c4b5fd',
-                    400: '#a78bfa',
-                    500: '#8b5cf6',
-                    600: '#7c3aed',
-                    700: '#6d28d9',
-                    800: '#5b21b6',
-                    900: '#4c1d95',
-                    950: '#2e1065',
+                    50: '#f1f0fe',
+                    100: '#e5e3fd',
+                    200: '#d0cbff', // OpenOperative light lavender token
+                    300: '#b3acfb',
+                    400: '#9b93ff', // OpenOperative periwinkle token
+                    500: '#6f64ee',
+                    600: '#5147e6', // OpenOperative signature indigo-violet
+                    700: '#4038c9',
+                    800: '#2f2aa1',
+                    900: '#220296', // OpenOperative deep indigo token
+                    950: '#16005e',
                 },
                 // Gradient endpoints
-                'gradient-start': '#7c3aed',
-                'gradient-end': '#4f46e5',
+                'gradient-start': '#5147e6',
+                'gradient-end': '#220296',
             },
             backgroundImage: {
-                'brand-gradient': 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-                'brand-gradient-subtle': 'linear-gradient(135deg, #f5f3ff 0%, #eef2ff 100%)',
+                // Indigo → deep-indigo (white text stays legible on both ends).
+                'brand-gradient': 'linear-gradient(135deg, #5147e6 0%, #220296 100%)',
+                'brand-gradient-subtle': 'linear-gradient(135deg, #f1f0fe 0%, #eef2ff 100%)',
             },
             borderRadius: {
                 lg: 'var(--radius)',

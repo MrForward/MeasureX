@@ -93,11 +93,9 @@ export const POST = withWorkspaceAccess<RouteParams>(
                     promptId: prompt.id,
                     engine,
                     workspaceId,
+                    // Reuse this pre-created execution in the worker (no double-create).
+                    executionId,
                 });
-
-                // Suppress unused variable warning — executionId is created for
-                // the DB record; the job payload carries runId + promptId + engine
-                void executionId;
             }
         }
 
