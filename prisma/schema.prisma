@@ -1,5 +1,7 @@
-// MeasureX — Prisma Schema
-// AI Visibility Monitor data model
+// MeasureX MVP — Prisma Schema
+// Source of truth: MeasureX_MVP_PRD.md Section 5 (Data Model).
+// Models below are copied verbatim from the PRD. Only the generator and
+// datasource blocks (required boilerplate for Prisma to compile) are added.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,17 +12,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  name                 String?
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  subscriptionStatus   String   @default("inactive") // active, canceled, past_due, inactive
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  brand                Brand?
+
+  // NextAuth.js adapter fields/relations (added per auth decision; PRD fields above unchanged)
+  emailVerified        DateTime?
+  image                String?
+  accounts             Account[]
+  sessions             Session[]
+}
+
 // ─────────────────────────────────────────────
-// NextAuth.js required tables (Prisma adapter)
-// https://authjs.dev/reference/adapter/prisma
+// NextAuth.js adapter tables (https://authjs.dev/reference/adapter/prisma)
+// Added to support session-based auth (PRD §8). NOT part of PRD §5 models.
 // ─────────────────────────────────────────────
 
 model Account {
-  id                String  @id @default(uuid())
-  userId            String  @map("user_id")
+  id                String  @id @default(cuid())
+  userId            String
   type              String
   provider          String
-  providerAccountId String  @map("provider_account_id")
+  providerAccountId String
   refresh_token     String? @db.Text
   access_token      String? @db.Text
   expires_at        Int?
@@ -32,18 +52,14 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@map("accounts")
 }
 
 model Session {
-  id           String   @id @default(uuid())
-  sessionToken String   @unique @map("session_token")
-  userId       String   @map("user_id")
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -52,293 +68,87 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-  @@map("verification_tokens")
 }
 
-// ─────────────────────────────────────────────
-// Core entities
-// ─────────────────────────────────────────────
-
-model User {
-  id           String            @id @default(uuid())
-  email        String            @unique
-  name         String?
-  image        String?
-  emailVerified DateTime?        @map("email_verified")
-  authProvider String?           @map("auth_provider")
-  createdAt    DateTime          @default(now()) @map("created_at")
-  updatedAt    DateTime          @updatedAt @map("updated_at")
-
-  accounts     Account[]
-  sessions     Session[]
-  memberships  WorkspaceMember[]
-  ownedSpaces  Workspace[]       @relation("WorkspaceOwner")
-
-  @@map("users")
-}
-
-model Workspace {
-  id            String            @id @default(uuid())
-  name          String
-  ownerId       String            @map("owner_id")
-  plan          String            @default("free")
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
-  deletedAt     DateTime?         @map("deleted_at")
-
-  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  members       WorkspaceMember[]
-  brandProfiles BrandProfile[]
-  competitors   Competitor[]
-  prompts       Prompt[]
-  runs          Run[]
-
-  @@index([ownerId])
-  @@map("workspaces")
-}
-
-model WorkspaceMember {
-  workspaceId String   @map("workspace_id")
-  userId      String   @map("user_id")
-  role        String   @default("viewer") // owner | viewer
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([workspaceId, userId])
-  @@map("workspace_members")
-}
-
-model BrandProfile {
-  id          String    @id @default(uuid())
-  workspaceId String    @map("workspace_id")
-  brandName   String    @map("brand_name")
+model Brand {
+  id          String       @id @default(cuid())
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id])
+  name        String
   domain      String
-  aliases     String[]
-  version     Int       @default(1)
-  createdAt   DateTime  @default(now()) @map("created_at")
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@index([workspaceId])
-  @@map("brand_profiles")
+  aliases     String[]     @default([])
+  competitors Competitor[]
+  prompts     Prompt[]
+  scans       Scan[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model Competitor {
-  id          String    @id @default(uuid())
-  workspaceId String    @map("workspace_id")
-  name        String
-  domain      String
-  aliases     String[]
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now()) @map("created_at")
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@index([workspaceId])
-  @@map("competitors")
+  id        String   @id @default(cuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id])
+  name      String
+  domain    String
+  createdAt DateTime @default(now())
 }
-
-// ─────────────────────────────────────────────
-// Prompt management
-// ─────────────────────────────────────────────
 
 model Prompt {
-  id             String    @id @default(uuid())
-  workspaceId    String    @map("workspace_id")
-  text           String
-  intent         String?   // informational | navigational | commercial | transactional
-  topic          String?
-  geography      String    @default("US")
-  language       String    @default("en")
-  engines        String[]  // ['chatgpt', 'perplexity', 'google_ai']
-  version        Int       @default(1)
-  parentPromptId String?   @map("parent_prompt_id")
-  status         String    @default("active") // active | archived | underperforming
-  createdAt      DateTime  @default(now()) @map("created_at")
-  archivedAt     DateTime? @map("archived_at")
-
-  workspace      Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  executions     Execution[]
-
-  @@index([workspaceId])
-  @@index([status])
-  @@map("prompts")
+  id        String      @id @default(cuid())
+  brandId   String
+  brand     Brand       @relation(fields: [brandId], references: [id])
+  text      String
+  category  String      // "category", "comparison", "buyer_intent"
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  runs      EngineRun[]
 }
 
-// ─────────────────────────────────────────────
-// Execution tracking
-// ─────────────────────────────────────────────
-
-model Run {
-  id              String      @id @default(uuid())
-  workspaceId     String      @map("workspace_id")
-  type            String      // scheduled | manual | baseline
-  status          String      @default("queued") // queued | in_progress | completed | partial | failed
-  week            String?     // ISO week for idempotency
-  startedAt       DateTime?   @map("started_at")
-  completedAt     DateTime?   @map("completed_at")
-  totalExecutions Int         @default(0) @map("total_executions")
-  successful      Int         @default(0)
-  failed          Int         @default(0)
-  skipped         Int         @default(0)
-  // Set atomically when the metrics step is first triggered, so the metrics
-  // job fires exactly once even when many extractions complete concurrently.
-  metricsStartedAt DateTime?  @map("metrics_started_at")
-  createdAt       DateTime    @default(now()) @map("created_at")
-
-  workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  executions      Execution[]
-
-  @@unique([workspaceId, week, type])
-  @@index([workspaceId])
-  @@index([status])
-  @@map("runs")
+model Scan {
+  id             String      @id @default(cuid())
+  brandId        String
+  brand          Brand       @relation(fields: [brandId], references: [id])
+  status         String      @default("running") // running, completed, partial, failed
+  overallScore   Int?
+  previousScore  Int?
+  delta          Int?
+  engineScores   Json?       // { chatgpt: Int, perplexity: Int }
+  totalPrompts   Int
+  completedRuns  Int         @default(0)
+  failedRuns     Int         @default(0)
+  startedAt      DateTime    @default(now())
+  completedAt    DateTime?
+  runs           EngineRun[]
 }
 
-model Execution {
-  id              String      @id @default(uuid())
-  runId           String      @map("run_id")
-  promptId        String      @map("prompt_id")
-  engine          String
-  status          String      @default("pending") // pending | success | failed | skipped
-  rawResponseRef  String?     @map("raw_response_ref") // R2 object key
-  rawResponseBody String?     @map("raw_response_body") @db.Text // DB fallback when R2 is unavailable (dev/local)
-  responseChecksum String?    @map("response_checksum")
-  modelVersion    String?     @map("model_version")
-  executionTimeMs Int?        @map("execution_time_ms")
-  estimatedCost   Float       @default(0) @map("estimated_cost")
-  retryCount      Int         @default(0) @map("retry_count")
-  errorDetails    String?     @map("error_details")
-  createdAt       DateTime    @default(now()) @map("created_at")
-
-  run             Run         @relation(fields: [runId], references: [id], onDelete: Cascade)
-  prompt          Prompt      @relation(fields: [promptId], references: [id], onDelete: Cascade)
+model EngineRun {
+  id              String      @id @default(cuid())
+  scanId          String
+  scan            Scan        @relation(fields: [scanId], references: [id])
+  promptId        String
+  prompt          Prompt      @relation(fields: [promptId], references: [id])
+  engine          String      // "chatgpt", "perplexity"
+  model           String      // "gpt-4o-mini", "sonar"
+  status          String      @default("pending") // pending, completed, failed
+  rawResponse     String?     @db.Text
+  nativeCitations Json?       // Perplexity citation URLs array
+  tokensUsed      Int?
+  errorMessage    String?
+  createdAt       DateTime    @default(now())
   extraction      Extraction?
-
-  @@index([runId])
-  @@index([promptId])
-  @@index([status])
-  @@map("executions")
 }
-
-// ─────────────────────────────────────────────
-// Extraction results
-// ─────────────────────────────────────────────
 
 model Extraction {
-  id                   String    @id @default(uuid())
-  executionId          String    @unique @map("execution_id")
-  brandMentioned       Boolean   @default(false) @map("brand_mentioned")
-  mentionPosition      String?   @map("mention_position") // first | middle | last
-  recommendationStrength String? @map("recommendation_strength") // explicit | neutral | none
-  brandCited           Boolean   @default(false) @map("brand_cited")
-  confidenceScore      Float     @default(0) @map("confidence_score")
-  ambiguous            Boolean   @default(false)
-  mentionsJson         Json?     @map("mentions_json")
-  citationsJson        Json?     @map("citations_json")
-  createdAt            DateTime  @default(now()) @map("created_at")
-
-  execution            Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-
-  @@map("extractions")
-}
-
-// ─────────────────────────────────────────────
-// Computed metrics
-// ─────────────────────────────────────────────
-
-model Metric {
-  id              String   @id @default(uuid())
-  workspaceId     String   @map("workspace_id")
-  runId           String   @map("run_id")
-  promptId        String?  @map("prompt_id")
-  engine          String?
-  date            DateTime
-  visibilityScore Float    @map("visibility_score")
-  mentionCount    Int      @default(0) @map("mention_count")
-  avgPosition     Float?   @map("avg_position")
-  citationRate    Float    @default(0) @map("citation_rate")
-  wowChange       Float?   @map("wow_change")
-  rolling4wkAvg   Float?   @map("rolling_4wk_avg")
-  rawExecutionId  String?  @map("raw_execution_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  @@index([workspaceId])
-  @@index([runId])
-  @@map("metrics")
-}
-
-model Recommendation {
-  id           String   @id @default(uuid())
-  workspaceId  String   @map("workspace_id")
-  runId        String   @map("run_id")
-  evidenceText String   @map("evidence_text")
-  action       String
-  impactLevel  String   @map("impact_level") // high | medium | low
-  confidence   Float
-  promptId     String?  @map("prompt_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  @@index([workspaceId])
-  @@map("recommendations")
-}
-
-// ─────────────────────────────────────────────
-// Audit & admin
-// ─────────────────────────────────────────────
-
-model AuditLog {
-  id          String   @id @default(uuid())
-  workspaceId String?  @map("workspace_id")
-  eventType   String   @map("event_type")
-  detailsJson Json?    @map("details_json")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@index([workspaceId])
-  @@index([eventType])
-  @@map("audit_log")
-}
-
-model ApiUsage {
-  id            String   @id @default(uuid())
-  workspaceId   String   @map("workspace_id")
-  engine        String
-  date          String   // YYYY-MM-DD
-  callCount     Int      @default(0) @map("call_count")
-  estimatedCost Float    @default(0) @map("estimated_cost")
-
-  @@unique([workspaceId, engine, date])
-  @@index([workspaceId])
-  @@map("api_usage")
-}
-
-model Notification {
-  id          String   @id @default(uuid())
-  workspaceId String   @map("workspace_id")
-  userId      String   @map("user_id")
-  type        String
-  content     Json
-  read        Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@index([userId])
-  @@map("notifications")
-}
-
-// ─────────────────────────────────────────────
-// Platform configuration (runtime-tunable)
-// ─────────────────────────────────────────────
-
-model PlatformConfig {
-  id          Int      @id @default(autoincrement())
-  key         String   @unique
-  value       Json
-  description String?
-  category    String?  // scoring | limits | engines | costs | auth | extraction | notifications
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  updatedBy   String?  @map("updated_by")
-
-  @@map("platform_config")
+  id                     String   @id @default(cuid())
+  runId                  String   @unique
+  run                    EngineRun @relation(fields: [runId], references: [id])
+  brandMentioned         Boolean
+  brandPosition          Int?
+  brandMentionCount      Int      @default(0)
+  brandRecommendation    String   // "RECOMMENDED", "MENTIONED", "ABSENT"
+  competitorResults      Json     // [{competitor_id, mentioned, position, mention_count, recommendation}]
+  citations              Json     // [{url, domain, classification, competitor_name?}]
+  promptScore            Int      // 0-4
+  createdAt              DateTime @default(now())
 }

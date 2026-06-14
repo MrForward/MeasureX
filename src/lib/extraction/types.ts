@@ -1,56 +1,78 @@
 /**
- * Extraction-specific type definitions for the entity extraction pipeline.
+ * Extraction-pipeline type definitions — aligned to PRD §F5 (Extraction Pipeline)
+ * and the `Extraction` model in PRD §5 (Data Model).
  *
- * These types describe the inputs and outputs of the matching stages
- * (exact match, fuzzy match) that detect brand and competitor mentions
- * within raw AI engine responses.
- *
- * Validates: Requirement 5.1 (exact match of brand name, aliases, competitor names)
- * Validates: Requirement 17 (competitor intelligence — disambiguation, false-positive avoidance)
+ * The pipeline is rule-based only (no LLM calls). It analyzes a single raw AI
+ * engine response and produces the {@link Extraction} shape consumed by the
+ * scoring engine (§F6) and persisted to the `extractions` table.
  */
 
-export type EntityType = 'brand' | 'competitor';
+/** Recommendation strength classification (PRD §F5d). */
+export type RecommendationStrength = 'RECOMMENDED' | 'MENTIONED' | 'ABSENT';
 
-export type MatchType = 'exact' | 'fuzzy';
+/** Citation source classification (PRD §F5c). */
+export type CitationClassification =
+    | 'owned'
+    | 'competitor'
+    | 'review_site'
+    | 'publication'
+    | 'forum'
+    | 'other';
 
 /**
- * An entity that can be matched within a response.
- *
- * Built from a Brand_Profile (type = 'brand') or a competitor configuration
- * (type = 'competitor'). `name` is the primary display name and `aliases`
- * holds alternative names / disambiguation strings (Requirement 17.1).
+ * An entity (brand or competitor) the pipeline searches for. `id` ties results
+ * back to the Brand / Competitor record; `name` and `domain` are the match
+ * targets.
  */
-export interface MatchableEntity {
-    /** Brand profile ID or competitor ID. */
+export interface ExtractionEntity {
     id: string;
-    /** Whether this entity is the monitored brand or a configured competitor. */
-    type: EntityType;
-    /** Primary name (e.g., "HubSpot", "Zoho CRM"). */
     name: string;
-    /** Alternative names / aliases (e.g., ["Hubspot", "hubspot"]). */
-    aliases: string[];
-    /** Base domain used for citation matching (e.g., "hubspot.com"). */
     domain: string;
 }
 
 /**
- * A single detected mention of an entity within a response.
- *
- * Exact matches are recorded with `matchType = 'exact'` and `confidence = 1.0`
- * (Requirement 5.6, design Property 8). Fuzzy matches (added in task 3.2) use
- * `matchType = 'fuzzy'` with a confidence in the range 0.5-0.9.
+ * Per-entity exact-match summary (PRD §F5a output).
+ * - `mentioned`: name (word-boundary, case-insensitive) or domain found.
+ * - `mentionCount`: total distinct occurrences in the response.
+ * - `firstMentionPosition`: character offset of the first occurrence, or null.
  */
-export interface EntityMatch {
-    /** ID of the matched entity (brand profile ID or competitor ID). */
-    entityId: string;
-    /** Whether the matched entity is the brand or a competitor. */
-    entityType: EntityType;
-    /** The exact substring found in the response text. */
-    matchedText: string;
-    /** How the match was produced. */
-    matchType: MatchType;
-    /** Match certainty in the range 0-1. Exact matches are always 1.0. */
-    confidence: number;
-    /** Zero-based character index in the response where the match starts. */
-    position: number;
+export interface EntityMatchResult {
+    mentioned: boolean;
+    mentionCount: number;
+    firstMentionPosition: number | null;
+}
+
+/** Per-competitor result embedded in {@link Extraction.competitorResults}. */
+export interface CompetitorResult {
+    competitorId: string;
+    mentioned: boolean;
+    /** Rank by first-mention character offset (1 = earliest), or null. */
+    position: number | null;
+    mentionCount: number;
+    recommendation: RecommendationStrength;
+}
+
+/** A single classified citation (PRD §F5c). */
+export interface CitationResult {
+    url: string;
+    domain: string;
+    classification: CitationClassification;
+    /** Present only when `classification === 'competitor'`. */
+    competitorName?: string;
+}
+
+/**
+ * The full extraction result for one response — the exact shape returned by
+ * `runExtraction` (PRD §F5 "Storage per extraction").
+ */
+export interface Extraction {
+    brandMentioned: boolean;
+    /** Brand's rank by mention order (1 = first), or null when absent. */
+    brandPosition: number | null;
+    brandMentionCount: number;
+    brandRecommendation: RecommendationStrength;
+    competitorResults: CompetitorResult[];
+    citations: CitationResult[];
+    /** 0-4 per-prompt-engine score (PRD §F6). */
+    promptScore: number;
 }

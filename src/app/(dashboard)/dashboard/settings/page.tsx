@@ -1,91 +1,109 @@
 import type { Metadata } from 'next';
-import { requireAuth } from '@/lib/auth/utils';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/api/auth';
 import { db } from '@/lib/db';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { loadWorkspaceUsage } from '@/lib/dashboard/usage';
+import { ManageBillingButton } from '@/components/dashboard/manage-billing-button';
+import { PromptManager } from '@/components/dashboard/prompt-manager';
+import { SignOutButton } from '@/components/dashboard/sign-out-button';
+
+type Category = 'category' | 'comparison' | 'buyer_intent';
 
 export const metadata: Metadata = { title: 'Settings — MeasureX' };
 
-const ENGINE_LABELS: Record<string, string> = {
-    chatgpt: 'ChatGPT',
-    perplexity: 'Perplexity',
-    google_ai: 'Google AI',
+const STATUS: Record<string, { label: string; className: string }> = {
+    active: { label: 'Active', className: 'bg-emerald-100 text-emerald-700' },
+    past_due: { label: 'Past due', className: 'bg-amber-100 text-amber-700' },
+    canceled: { label: 'Canceled', className: 'bg-red-100 text-red-700' },
+    inactive: { label: 'Inactive', className: 'bg-slate-100 text-slate-600' },
 };
 
-interface SettingsPageProps {
-    searchParams: { workspace?: string };
-}
+export default async function SettingsPage() {
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login?callbackUrl=/dashboard/settings');
+    }
 
-/**
- * Settings page — currently surfaces API usage & estimated cost (Req 10.1/10.2).
- * Brand/workspace/member configuration UI is a later task (5.13).
- */
-export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-    const session = await requireAuth();
-    const userId = session.user?.id;
-    if (!userId) throw new Error('Authenticated session is missing user id');
-
-    const memberships = await db.workspaceMember.findMany({
-        where: { userId, workspace: { deletedAt: null } },
-        include: { workspace: true },
-        orderBy: { createdAt: 'asc' },
+    const brand = await db.brand.findUnique({
+        where: { userId: user.id },
+        select: {
+            id: true,
+            name: true,
+            domain: true,
+            prompts: {
+                orderBy: { createdAt: 'asc' },
+                select: { id: true, text: true, category: true, active: true },
+            },
+        },
     });
-    const byId = new Map(memberships.map((m) => [m.workspaceId, m]));
-    const requested = searchParams.workspace;
-    const active = (requested && byId.get(requested)) || memberships[0] || null;
-
-    const usage = active
-        ? await loadWorkspaceUsage(active.workspaceId)
-        : { hasData: false, byEngine: [], totalCalls: 0, totalCost: 0 };
+    const status = STATUS[user.subscriptionStatus] ?? STATUS.inactive;
 
     return (
-        <div className="space-y-8">
-            <header className="space-y-1">
+        <div className="mx-auto max-w-2xl space-y-6">
+            <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
-                <p className="text-sm text-slate-500">
-                    API usage and estimated cost for {active?.workspace.name ?? 'your workspace'}.
-                </p>
-            </header>
+                <Link href="/dashboard" className="text-sm font-medium text-brand-600 hover:underline">
+                    ← Back to dashboard
+                </Link>
+            </div>
 
-            <section className="space-y-3">
-                <h2 className="text-sm font-medium text-slate-700">API usage &amp; cost</h2>
-                {!usage.hasData ? (
-                    <Card className="p-8 text-center">
-                        <p className="text-sm text-slate-500">
-                            No usage yet. Run a scan to start tracking engine calls and estimated cost.
-                        </p>
-                    </Card>
-                ) : (
-                    <Card className="space-y-4 p-5">
-                        <div className="flex items-baseline justify-between">
-                            <span className="text-sm text-slate-500">
-                                {usage.totalCalls} engine calls
-                            </span>
-                            <span className="text-2xl font-semibold text-slate-900">
-                                ${usage.totalCost.toFixed(2)}
-                                <span className="ml-1 text-sm font-normal text-slate-400">est.</span>
-                            </span>
+            {/* Account */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Account</h2>
+                <dl className="mt-4 space-y-3 text-sm">
+                    <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Email</dt>
+                        <dd className="font-medium text-slate-900">{user.email}</dd>
+                    </div>
+                    {brand && (
+                        <div className="flex justify-between gap-4">
+                            <dt className="text-slate-500">Brand</dt>
+                            <dd className="font-medium text-slate-900">{brand.name} · {brand.domain}</dd>
                         </div>
-                        <ul className="divide-y divide-slate-50">
-                            {usage.byEngine.map((e) => (
-                                <li key={e.engine} className="flex items-center justify-between py-2.5">
-                                    <span className="flex items-center gap-2">
-                                        <Badge variant="outline">{ENGINE_LABELS[e.engine] ?? e.engine}</Badge>
-                                        <span className="text-sm text-slate-500">{e.callCount} calls</span>
-                                    </span>
-                                    <span className="text-sm font-medium tabular-nums text-slate-900">
-                                        ${e.estimatedCost.toFixed(4)}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </Card>
-                )}
-                <p className="text-xs text-slate-400">
-                    Costs are estimates based on per-engine rates. Brand, workspace, and schedule
-                    settings are coming soon.
+                    )}
+                </dl>
+            </section>
+
+            {/* Prompts (PRD §F12) */}
+            {brand ? (
+                <PromptManager
+                    initialPrompts={brand.prompts.map((p) => ({
+                        id: p.id,
+                        text: p.text,
+                        category: p.category as Category,
+                        active: p.active,
+                    }))}
+                />
+            ) : (
+                <section className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+                    Complete onboarding to manage your prompts.
+                </section>
+            )}
+
+            {/* Subscription */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Subscription</h2>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-500">Status</span>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}>
+                            {status.label}
+                        </span>
+                        <span className="text-sm text-slate-500">· $9/month</span>
+                    </div>
+                    <ManageBillingButton />
+                </div>
+                <p className="mt-3 text-xs text-slate-400">
+                    Manage your plan, payment method, or cancel anytime in the billing portal.
                 </p>
+            </section>
+
+            {/* Session */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Session</h2>
+                <div className="mt-4">
+                    <SignOutButton />
+                </div>
             </section>
         </div>
     );

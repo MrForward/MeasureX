@@ -1,165 +1,156 @@
 /**
- * Entity-extraction orchestrator — the composition root for the §4 pipeline.
+ * Entity-extraction orchestrator (PRD §F5).
  *
- * The individual extraction stages (exact match, fuzzy match, position,
- * recommendation strength, citation classification, ambiguity) were each built
- * and unit-tested in Phase 3, but nothing chained them together. This module is
- * that missing entry point: given a raw response and the workspace's brand +
- * competitor configuration, it runs the full pipeline and returns a single
- * {@link ExtractionResult} ready for scoring, plus the raw match/citation data
- * for persistence into the `extractions` table.
+ * Given a single raw AI response plus brand and competitor configuration, runs
+ * the full rule-based pipeline and returns the exact {@link Extraction} shape
+ * consumed by the scoring engine (§F6) and persisted to the `extractions` table.
  *
- * Pipeline (design.md §4):
- *   1. Exact match (brand name, aliases, competitor names)
- *   2. Fuzzy match (suppressing positions already claimed by exact matches)
- *   3. URL extraction → merge with engine-provided citations
- *   4. Citation classification (brand / competitor / third-party)
- *   5. Position analysis (first / middle / last third of earliest brand mention)
- *   6. Recommendation-strength detection (rules first, ≤1 LLM call)
- *   7. Confidence + ambiguity flagging (confidence < 0.7 → ambiguous)
+ * Pipeline:
+ *   1. Exact-match the brand (name + domain).
+ *   2. Exact-match each competitor (name + domain).
+ *   3. Rank all detected entities by first-mention character offset.
+ *   4. Extract citation URLs (response text + engine-native citations).
+ *   5. Classify each citation (owned / competitor / review_site / …).
+ *   6. Detect brand recommendation strength (and per competitor).
+ *   7. Compute promptScore (0-4): 0 absent, 1 mentioned, 2 cited, 3 recommended,
+ *      +1 bonus when the brand appears before ALL competitors.
  *
- * Pure orchestration — no DB or network access here. The optional `classifier`
- * is the only outbound dependency and is injected by the caller, so this stays
- * fully unit-testable.
- *
- * Validates: Requirement 5 (entity & citation extraction), Requirement 6.6
- *            (extraction feeds the metric that links back to its execution)
+ * Pure orchestration — no DB or network access.
  */
 
-import type { Citation, ExtractionResult } from '@/types';
-import type { MatchableEntity, EntityMatch } from './types';
-import { findExactMatches } from './exact-match';
-import { findFuzzyMatches } from './fuzzy-match';
-import { getBrandMentionPosition, getEarliestMatch } from './position-analysis';
-import {
-    detectRecommendationStrength,
-    type LLMClassifier,
-} from './recommendation-strength';
-import { extractCitationsFromText } from './url-extract';
+import { exactMatch } from './exact-match';
+import { rankByPosition, type RankableEntity } from './position-analysis';
+import { detectRecommendationStrength } from './recommendation-strength';
+import { extractUrls } from './url-extract';
 import { classifyCitations } from './citation-classify';
-import { isAmbiguous } from './ambiguity';
-
-// ── Input / output ──────────────────────────────────────────────────────────
+import type {
+    CompetitorResult,
+    Extraction,
+    ExtractionEntity,
+} from './types';
 
 export interface RunExtractionInput {
-    /** The raw AI response text to extract from. */
+    /** Raw AI response text to analyze. */
     responseText: string;
-    /** Citations the engine reported directly (e.g. Perplexity's array). */
-    responseCitations?: Citation[];
-    /** The monitored brand as a matchable entity (`type: 'brand'`). */
-    brand: MatchableEntity;
-    /** Configured competitors (`type: 'competitor'`). */
-    competitors: MatchableEntity[];
-    /**
-     * Optional LLM classifier for recommendation-strength disambiguation.
-     * When omitted, extraction runs rules-only (zero LLM cost).
-     */
-    classifier?: LLMClassifier;
+    /** Engine-native citation URLs (e.g. Perplexity's `citations` array). */
+    nativeCitations?: string[];
+    /** The monitored brand. */
+    brand: ExtractionEntity;
+    /** Configured competitors (max 2 in the MVP). */
+    competitors: ExtractionEntity[];
 }
 
-export interface RunExtractionOutput {
-    /** Scoring-ready result consumed by `computeVisibilityScore`. */
-    result: ExtractionResult;
-    /** Every detected mention (brand + competitor) — persisted as `mentionsJson`. */
-    mentions: EntityMatch[];
-    /** Count of brand mentions only — feeds the metric's `mentionCount`. */
-    brandMentionCount: number;
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
+const BRAND_RANK_ID = '__brand__';
 
 /**
- * Merge engine-provided citations with URLs extracted from the response text,
- * de-duplicated by normalized domain + url so the same source is not counted
- * twice. Engine-provided citations win on conflict (they are authoritative).
+ * Run the full extraction pipeline for one response. Never throws — an empty or
+ * absent response yields a valid "brand absent, score 0" result.
  */
-function mergeCitations(
-    engineCitations: Citation[],
-    textCitations: Citation[],
-): Citation[] {
-    const byKey = new Map<string, Citation>();
-    for (const c of [...engineCitations, ...textCitations]) {
-        const key = `${c.domain}|${c.url}`;
-        if (!byKey.has(key)) {
-            byKey.set(key, { ...c });
-        }
-    }
-    return Array.from(byKey.values());
-}
+export function runExtraction(input: RunExtractionInput): Extraction {
+    const text = input.responseText ?? '';
+    const { brand, competitors } = input;
 
-// ── Orchestrator ──────────────────────────────────────────────────────────────
-
-/**
- * Run the full entity-extraction pipeline for a single response.
- *
- * Never throws on empty/unparseable input — an empty response yields a valid
- * "no mention, full confidence" result (design.md edge case: "I don't have
- * information about that" is a legitimate zero, not an error).
- */
-export async function runExtraction(
-    input: RunExtractionInput,
-): Promise<RunExtractionOutput> {
-    const { responseText, brand, competitors, classifier } = input;
-    const text = responseText ?? '';
-    const entities: MatchableEntity[] = [brand, ...competitors];
-
-    // 1-2. Exact then fuzzy matching (fuzzy suppresses exact-claimed positions).
-    const exact = findExactMatches(text, entities);
-    const fuzzy = findFuzzyMatches(
-        text,
-        entities,
-        exact.map((m) => m.position),
-    );
-    const mentions = [...exact, ...fuzzy].sort((a, b) => a.position - b.position);
-
-    const brandMentions = mentions.filter((m) => m.entityType === 'brand');
-    const brandMentioned = brandMentions.length > 0;
-
-    // 3-4. Citations: merge engine + text-extracted, then classify.
-    const citations = mergeCitations(
-        input.responseCitations ?? [],
-        extractCitationsFromText(text),
-    );
-    const competitorDomains = competitors.map((c) => ({
-        entityId: c.id,
-        domain: c.domain,
+    // 1-2. Exact match brand + each competitor.
+    const brandMatch = exactMatch(text, brand.name, brand.domain);
+    const competitorMatches = competitors.map((c) => ({
+        entity: c,
+        match: exactMatch(text, c.name, c.domain),
     }));
-    classifyCitations(citations, brand.domain, competitorDomains);
-    const brandCited = citations.some((c) => c.classification === 'brand');
 
-    // 5. Position of the earliest brand mention.
-    const mentionPosition = getBrandMentionPosition(brandMentions, text.length);
+    // 3. Rank all detected entities by first-mention offset.
+    const rankInputs: RankableEntity[] = [
+        { id: BRAND_RANK_ID, firstMentionPosition: brandMatch.firstMentionPosition },
+        ...competitorMatches.map(({ entity, match }) => ({
+            id: entity.id,
+            firstMentionPosition: match.firstMentionPosition,
+        })),
+    ];
+    const ranks = rankByPosition(rankInputs);
+    const brandPosition = ranks.get(BRAND_RANK_ID) ?? null;
 
-    // 6. Recommendation strength (rules first, ≤1 LLM call) for the earliest
-    //    brand mention. No brand mention → 'none'.
-    const earliestBrand = getEarliestMatch(brandMentions);
-    const recommendationStrength = earliestBrand
-        ? await detectRecommendationStrength(
-              text,
-              earliestBrand.position,
-              earliestBrand.matchedText.length,
-              classifier,
-          )
-        : 'none';
+    // 4-5. Citations: response-text URLs + engine-native, then classify.
+    const urls = [...extractUrls(text), ...(input.nativeCitations ?? [])];
+    const citations = classifyCitations(urls, brand.domain, competitors);
+    const brandCited = citations.some((c) => c.classification === 'owned');
 
-    // 7. Confidence + ambiguity. Confidence reflects the brand match certainty;
-    //    when the brand is absent we are fully confident in its absence (1.0).
-    const confidenceScore = earliestBrand ? earliestBrand.confidence : 1.0;
-    const ambiguous = earliestBrand ? isAmbiguous(earliestBrand) : false;
+    // 6. Recommendation strength — brand and each competitor.
+    const brandRecommendation = detectRecommendationStrength(
+        text,
+        brand.name,
+        brandMatch.mentioned,
+    );
 
-    const result: ExtractionResult = {
-        brandMentioned,
-        mentionPosition,
-        recommendationStrength,
+    const competitorResults: CompetitorResult[] = competitorMatches.map(
+        ({ entity, match }) => ({
+            competitorId: entity.id,
+            mentioned: match.mentioned,
+            position: ranks.get(entity.id) ?? null,
+            mentionCount: match.mentionCount,
+            recommendation: detectRecommendationStrength(
+                text,
+                entity.name,
+                match.mentioned,
+            ),
+        }),
+    );
+
+    // 7. promptScore (0-4). Highest applicable base + bonus.
+    const promptScore = computePromptScore({
+        brandMentioned: brandMatch.mentioned,
         brandCited,
-        confidenceScore,
-        ambiguous,
-        citations,
-    };
+        brandRecommended: brandRecommendation === 'RECOMMENDED',
+        brandFirstPosition: brandMatch.firstMentionPosition,
+        competitorPositions: competitorMatches
+            .map(({ match }) => match.firstMentionPosition)
+            .filter((p): p is number => p !== null),
+    });
 
     return {
-        result,
-        mentions,
-        brandMentionCount: brandMentions.length,
+        brandMentioned: brandMatch.mentioned,
+        brandPosition,
+        brandMentionCount: brandMatch.mentionCount,
+        brandRecommendation,
+        competitorResults,
+        citations,
+        promptScore,
     };
+}
+
+interface PromptScoreInput {
+    brandMentioned: boolean;
+    brandCited: boolean;
+    brandRecommended: boolean;
+    brandFirstPosition: number | null;
+    competitorPositions: number[];
+}
+
+/**
+ * Compute the 0-4 per-prompt-engine score (PRD §F6).
+ *
+ * Base (highest applicable, not cumulative):
+ *   absent → 0, mentioned → 1, cited → 2, recommended → 3.
+ * Bonus: +1 when the brand is mentioned and appears before ALL tracked
+ * competitors (strictly earlier first-mention offset than every competitor).
+ * Capped at 4.
+ */
+export function computePromptScore(input: PromptScoreInput): number {
+    if (!input.brandMentioned || input.brandFirstPosition === null) {
+        return 0;
+    }
+
+    let base: number;
+    if (input.brandRecommended) {
+        base = 3;
+    } else if (input.brandCited) {
+        base = 2;
+    } else {
+        base = 1;
+    }
+
+    const beforeAllCompetitors = input.competitorPositions.every(
+        (pos) => input.brandFirstPosition! < pos,
+    );
+    const bonus = beforeAllCompetitors ? 1 : 0;
+
+    return Math.min(4, base + bonus);
 }

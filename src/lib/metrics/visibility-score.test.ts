@@ -1,303 +1,97 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+/**
+ * F6 Scoring eval (PRD §F6, "Scoring test") + unit tests for the scoring
+ * primitives. The 5 eval scenarios below mirror the PRD table exactly and must
+ * all pass (5/5).
+ */
+
+import { describe, it, expect } from 'vitest';
 import {
-    computeVisibilityScore,
-    getScoreBreakdown,
-    normalizeWeights,
-    loadScoreWeights,
-    DEFAULT_WEIGHTS,
+    scorePromptEngine,
+    computeOverallScore,
+    computePerEngineScores,
+    type PromptScoreSignals,
 } from './visibility-score';
-import type { ExtractionResult, ScoreWeights } from '@/types';
 
-// ── Mock the platform config so loadScoreWeights is deterministic and never
-//    touches the database. config.get(key, fallback) returns whatever the test
-//    queues up, otherwise the provided fallback. ──────────────────────────────
-const { mockConfigGet } = vi.hoisted(() => ({ mockConfigGet: vi.fn() }));
-
-vi.mock('@/lib/config', () => ({
-    config: { get: mockConfigGet },
-}));
-
-function makeExtraction(overrides: Partial<ExtractionResult> = {}): ExtractionResult {
-    return {
-        brandMentioned: false,
-        mentionPosition: null,
-        recommendationStrength: 'none',
-        brandCited: false,
-        confidenceScore: 1,
-        ambiguous: false,
-        citations: [],
-        ...overrides,
-    };
+/** Build `count` prompt-engine scores all equal to `score`. */
+function repeated(score: number, count: number): number[] {
+    return Array.from({ length: count }, () => score);
 }
 
-describe('computeVisibilityScore', () => {
-    it('returns 0 when nothing matches', () => {
-        expect(computeVisibilityScore(makeExtraction())).toBe(0);
+const ABSENT: PromptScoreSignals = { mentioned: false, cited: false, recommended: false, beforeAllCompetitors: false };
+const MENTIONED: PromptScoreSignals = { mentioned: true, cited: false, recommended: false, beforeAllCompetitors: false };
+const CITED: PromptScoreSignals = { mentioned: true, cited: true, recommended: false, beforeAllCompetitors: false };
+const RECOMMENDED: PromptScoreSignals = { mentioned: true, cited: false, recommended: true, beforeAllCompetitors: false };
+const RECOMMENDED_FIRST: PromptScoreSignals = { mentioned: true, cited: false, recommended: true, beforeAllCompetitors: true };
+
+describe('scorePromptEngine (PRD §F6 base + bonus)', () => {
+    it('maps each condition to the right 0-4 score', () => {
+        expect(scorePromptEngine(ABSENT)).toBe(0);
+        expect(scorePromptEngine(MENTIONED)).toBe(1);
+        expect(scorePromptEngine(CITED)).toBe(2);
+        expect(scorePromptEngine(RECOMMENDED)).toBe(3);
+        expect(scorePromptEngine(RECOMMENDED_FIRST)).toBe(4);
     });
 
-    it('returns 100 for a perfect result (first position, explicit rec, cited)', () => {
-        const score = computeVisibilityScore(
-            makeExtraction({
-                brandMentioned: true,
-                mentionPosition: 'first',
-                recommendationStrength: 'explicit',
-                brandCited: true,
-            })
-        );
-        expect(score).toBe(100);
-    });
-
-    it('returns 25 for mention-only (binary presence, no position/rec/citation)', () => {
-        // mention=100*0.25=25, position(null)=0, rec(none)=0, citation=0 → 25
-        const score = computeVisibilityScore(
-            makeExtraction({ brandMentioned: true })
-        );
-        expect(score).toBe(25);
-    });
-
-    // Property 1: Score Bounds — always 0-100
-    it('always produces a score between 0 and 100', () => {
-        const positions = ['first', 'middle', 'last', null] as const;
-        const strengths = ['explicit', 'neutral', 'none'] as const;
-        for (const mentioned of [true, false]) {
-            for (const position of positions) {
-                for (const strength of strengths) {
-                    for (const cited of [true, false]) {
-                        const score = computeVisibilityScore(
-                            makeExtraction({
-                                brandMentioned: mentioned,
-                                mentionPosition: position,
-                                recommendationStrength: strength,
-                                brandCited: cited,
-                            })
-                        );
-                        expect(score).toBeGreaterThanOrEqual(0);
-                        expect(score).toBeLessThanOrEqual(100);
-                    }
-                }
-            }
-        }
-    });
-
-    // Property 2: Determinism — same input, same output
-    it('is deterministic', () => {
-        const extraction = makeExtraction({
-            brandMentioned: true,
-            mentionPosition: 'middle',
-            recommendationStrength: 'neutral',
-            brandCited: true,
-        });
-        const a = computeVisibilityScore(extraction);
-        const b = computeVisibilityScore(extraction);
-        expect(a).toBe(b);
+    it('adds the bonus to the highest applicable base, capped at 4', () => {
+        expect(scorePromptEngine({ ...MENTIONED, beforeAllCompetitors: true })).toBe(2);
+        expect(scorePromptEngine({ ...CITED, beforeAllCompetitors: true })).toBe(3);
     });
 });
 
-describe('getScoreBreakdown', () => {
-    it('breakdown total matches computeVisibilityScore', () => {
-        const extraction = makeExtraction({
-            brandMentioned: true,
-            mentionPosition: 'first',
-            recommendationStrength: 'explicit',
-            brandCited: false,
-        });
-        const breakdown = getScoreBreakdown(extraction);
-        expect(breakdown.total).toBe(computeVisibilityScore(extraction));
+describe('F6 scoring eval', () => {
+    it('Test 1 — 20 prompts × 2 engines, brand absent everywhere → 0', () => {
+        const scores = Array.from({ length: 40 }, () => scorePromptEngine(ABSENT));
+        expect(computeOverallScore(scores)).toBe(0);
+    });
+
+    it('Test 2 — 20 prompts × 2 engines, brand mentioned everywhere → 25', () => {
+        const scores = Array.from({ length: 40 }, () => scorePromptEngine(MENTIONED));
+        expect(scores.every((s) => s === 1)).toBe(true);
+        expect(computeOverallScore(scores)).toBe(25);
+    });
+
+    it('Test 3 — 20 prompts × 2 engines, recommended + first everywhere → 100', () => {
+        const scores = Array.from({ length: 40 }, () => scorePromptEngine(RECOMMENDED_FIRST));
+        expect(scores.every((s) => s === 4)).toBe(true);
+        expect(computeOverallScore(scores)).toBe(100);
+    });
+
+    it('Test 4 — 10 mentioned + 10 absent across 2 engines → 13', () => {
+        const scores = [
+            ...Array.from({ length: 10 }, () => scorePromptEngine(MENTIONED)),
+            ...Array.from({ length: 10 }, () => scorePromptEngine(ABSENT)),
+            ...Array.from({ length: 10 }, () => scorePromptEngine(MENTIONED)),
+            ...Array.from({ length: 10 }, () => scorePromptEngine(ABSENT)),
+        ];
+        // sum = 20, max = 40 × 4 = 160 → 12.5 → 13
+        expect(computeOverallScore(scores)).toBe(13);
+    });
+
+    it('Test 5 — mix 5 rec / 5 cited / 5 mentioned / 5 absent × 2 engines → 38', () => {
+        const perEngine = [
+            ...Array.from({ length: 5 }, () => scorePromptEngine(RECOMMENDED)),
+            ...Array.from({ length: 5 }, () => scorePromptEngine(CITED)),
+            ...Array.from({ length: 5 }, () => scorePromptEngine(MENTIONED)),
+            ...Array.from({ length: 5 }, () => scorePromptEngine(ABSENT)),
+        ];
+        const scores = [...perEngine, ...perEngine]; // 2 engines
+        // sum = (15 + 10 + 5 + 0) × 2 = 60, max = 40 × 4 = 160 → 37.5 → 38
+        expect(computeOverallScore(scores)).toBe(38);
     });
 });
 
-describe('normalizeWeights', () => {
-    it('normalizes weights that sum to 2.0 down to sum 1.0', () => {
-        const weights: ScoreWeights = {
-            mention: 0.5,
-            position: 0.5,
-            recommendation: 0.5,
-            citation: 0.5,
-        };
-        const normalized = normalizeWeights(weights);
-        const sum =
-            normalized.mention +
-            normalized.position +
-            normalized.recommendation +
-            normalized.citation;
-        expect(sum).toBeCloseTo(1.0, 10);
-        // Equal inputs stay equal after normalization.
-        expect(normalized.mention).toBeCloseTo(0.25, 10);
-        expect(normalized.position).toBeCloseTo(0.25, 10);
-        expect(normalized.recommendation).toBeCloseTo(0.25, 10);
-        expect(normalized.citation).toBeCloseTo(0.25, 10);
-    });
-
-    it('returns equal 0.25 weights when all weights are zero', () => {
-        const normalized = normalizeWeights({
-            mention: 0,
-            position: 0,
-            recommendation: 0,
-            citation: 0,
-        });
-        expect(normalized).toEqual(DEFAULT_WEIGHTS);
-    });
-
-    it('returns equal weights when the sum is negative (defensive)', () => {
-        const normalized = normalizeWeights({
-            mention: -1,
-            position: -1,
-            recommendation: -1,
-            citation: -1,
-        });
-        expect(normalized).toEqual(DEFAULT_WEIGHTS);
-    });
-
-    it('preserves the relative proportions of unequal weights', () => {
-        // 0.4 : 0.2 : 0.2 : 0.2 (sum 1.0 already) should be unchanged.
-        const normalized = normalizeWeights({
-            mention: 0.4,
-            position: 0.2,
-            recommendation: 0.2,
-            citation: 0.2,
-        });
-        expect(normalized.mention).toBeCloseTo(0.4, 10);
-        expect(normalized.position).toBeCloseTo(0.2, 10);
+describe('computeOverallScore edge cases', () => {
+    it('returns 0 for an empty scan', () => {
+        expect(computeOverallScore([])).toBe(0);
     });
 });
 
-describe('computeVisibilityScore with custom weights', () => {
-    it('produces the expected score for non-equal weights', () => {
-        // Weight only mention presence; everything else contributes 0.
-        const weights: ScoreWeights = {
-            mention: 1,
-            position: 0,
-            recommendation: 0,
-            citation: 0,
-        };
-        // mention=100, others ignored → 100 * 1.0 = 100
-        const score = computeVisibilityScore(
-            makeExtraction({
-                brandMentioned: true,
-                mentionPosition: 'last',
-                recommendationStrength: 'neutral',
-                brandCited: false,
-            }),
-            weights
-        );
-        expect(score).toBe(100);
-    });
-
-    it('weights citation heavily and computes the expected blended score', () => {
-        // mention 0.1, position 0.1, recommendation 0.1, citation 0.7
-        const weights: ScoreWeights = {
-            mention: 0.1,
-            position: 0.1,
-            recommendation: 0.1,
-            citation: 0.7,
-        };
-        // mention=100*0.1=10, position(first=100)*0.1=10,
-        // rec(explicit=100)*0.1=10, citation=100*0.7=70 → 100
-        const score = computeVisibilityScore(
-            makeExtraction({
-                brandMentioned: true,
-                mentionPosition: 'first',
-                recommendationStrength: 'explicit',
-                brandCited: true,
-            }),
-            weights
-        );
-        expect(score).toBe(100);
-
-        // Same weights but only cited → 70
-        const citedOnly = computeVisibilityScore(
-            makeExtraction({ brandCited: true }),
-            weights
-        );
-        expect(citedOnly).toBe(70);
-    });
-
-    it('stays within [0, 100] for un-normalized (sum > 1) weights', () => {
-        // Misconfiguration: weights sum to 4.0. Without internal normalization
-        // a perfect result would naively compute to 400.
-        const badWeights: ScoreWeights = {
-            mention: 1,
-            position: 1,
-            recommendation: 1,
-            citation: 1,
-        };
-        const score = computeVisibilityScore(
-            makeExtraction({
-                brandMentioned: true,
-                mentionPosition: 'first',
-                recommendationStrength: 'explicit',
-                brandCited: true,
-            }),
-            badWeights
-        );
-        // Normalized back to equal 0.25 → perfect result is 100, not 400.
-        expect(score).toBe(100);
-        expect(score).toBeGreaterThanOrEqual(0);
-        expect(score).toBeLessThanOrEqual(100);
-    });
-
-    // Property 1 (bounds) under arbitrary weight configurations.
-    it('keeps the score in [0, 100] across many weight combinations', () => {
-        const positions = ['first', 'middle', 'last', null] as const;
-        const strengths = ['explicit', 'neutral', 'none'] as const;
-        // Deterministic pseudo-random weights (seeded LCG) — no flakiness.
-        let seed = 123456789;
-        const next = () => {
-            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-            return seed / 0x7fffffff;
-        };
-
-        for (let i = 0; i < 200; i++) {
-            const weights: ScoreWeights = {
-                mention: next() * 5,
-                position: next() * 5,
-                recommendation: next() * 5,
-                citation: next() * 5,
-            };
-            const extraction = makeExtraction({
-                brandMentioned: next() > 0.5,
-                mentionPosition: positions[Math.floor(next() * positions.length)],
-                recommendationStrength: strengths[Math.floor(next() * strengths.length)],
-                brandCited: next() > 0.5,
-            });
-            const score = computeVisibilityScore(extraction, weights);
-            expect(score).toBeGreaterThanOrEqual(0);
-            expect(score).toBeLessThanOrEqual(100);
-        }
-    });
-});
-
-describe('loadScoreWeights', () => {
-    beforeEach(() => {
-        mockConfigGet.mockReset();
-    });
-
-    it('loads weights from the four scoring config keys', async () => {
-        const stored: Record<string, number> = {
-            'scoring.mention_weight': 0.4,
-            'scoring.position_weight': 0.2,
-            'scoring.recommendation_weight': 0.1,
-            'scoring.citation_weight': 0.3,
-        };
-        mockConfigGet.mockImplementation(async (key: string) => stored[key]);
-
-        const weights = await loadScoreWeights();
-        expect(weights).toEqual({
-            mention: 0.4,
-            position: 0.2,
-            recommendation: 0.1,
-            citation: 0.3,
+describe('computePerEngineScores', () => {
+    it('scores each engine independently', () => {
+        const out = computePerEngineScores({
+            chatgpt: repeated(4, 10), // all perfect → 100
+            perplexity: repeated(1, 10), // all mentioned → 25
         });
-    });
-
-    it('falls back to equal 0.25 defaults when config returns the fallback', async () => {
-        // Simulate config.get returning the provided fallback for every key
-        // (i.e. key missing / DB unavailable).
-        mockConfigGet.mockImplementation(
-            async (_key: string, fallback: number) => fallback
-        );
-
-        const weights = await loadScoreWeights();
-        expect(weights).toEqual(DEFAULT_WEIGHTS);
+        expect(out).toEqual({ chatgpt: 100, perplexity: 25 });
     });
 });
