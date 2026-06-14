@@ -1,125 +1,128 @@
+/**
+ * F5 Extraction-accuracy eval (PRD §F5, "Extraction accuracy test (CRITICAL)").
+ *
+ * The 10 synthetic cases below mirror the PRD table exactly. Pass threshold:
+ * 10/10. Extraction accuracy is non-negotiable.
+ */
+
 import { describe, it, expect } from 'vitest';
 import { runExtraction } from './run-extraction';
-import type { MatchableEntity } from './types';
+import type { ExtractionEntity } from './types';
 
-const brand: MatchableEntity = {
-    id: 'brand-1',
-    type: 'brand',
-    name: 'HubSpot',
-    aliases: ['Hubspot', 'hubspot'],
-    domain: 'hubspot.com',
-};
+const BRAND: ExtractionEntity = { id: 'brand', name: 'MeasureX', domain: 'measurex.io' };
+const OTTERLY: ExtractionEntity = { id: 'c-otterly', name: 'Otterly', domain: 'otterly.ai' };
+const PEEC: ExtractionEntity = { id: 'c-peec', name: 'Peec', domain: 'peec.ai' };
 
-const competitors: MatchableEntity[] = [
-    {
-        id: 'comp-1',
-        type: 'competitor',
-        name: 'Salesforce',
-        aliases: [],
-        domain: 'salesforce.com',
-    },
-    {
-        id: 'comp-2',
-        type: 'competitor',
-        name: 'Zoho CRM',
-        aliases: ['Zoho'],
-        domain: 'zoho.com',
-    },
-];
-
-describe('runExtraction', () => {
-    it('detects a brand mention in the first third and reports position', async () => {
-        const text =
-            'HubSpot is widely regarded as a leading CRM platform. ' +
-            'Many teams also evaluate Salesforce and Zoho CRM before deciding.';
-
-        const { result, brandMentionCount } = await runExtraction({
-            responseText: text,
-            brand,
-            competitors,
+describe('F5 extraction eval', () => {
+    it('Test 1 — clean mention', () => {
+        const r = runExtraction({
+            responseText: 'MeasureX is a good tool for monitoring.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
         });
-
-        expect(result.brandMentioned).toBe(true);
-        expect(result.mentionPosition).toBe('first');
-        expect(brandMentionCount).toBeGreaterThanOrEqual(1);
-        expect(result.confidenceScore).toBe(1.0); // exact match
-        expect(result.ambiguous).toBe(false);
+        expect(r.brandMentioned).toBe(true);
+        expect(r.brandPosition).toBe(1);
+        expect(r.brandRecommendation).toBe('MENTIONED');
     });
 
-    it('also detects competitor mentions across the full text', async () => {
-        const text = 'Salesforce and Zoho CRM are common alternatives.';
-        const { mentions, result } = await runExtraction({
-            responseText: text,
-            brand,
-            competitors,
+    it('Test 2 — recommendation', () => {
+        const r = runExtraction({
+            responseText: 'I recommend MeasureX for AEO tracking.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
         });
-
-        expect(result.brandMentioned).toBe(false);
-        const competitorMentions = mentions.filter(
-            (m) => m.entityType === 'competitor',
-        );
-        expect(competitorMentions.length).toBeGreaterThanOrEqual(2);
+        expect(r.brandMentioned).toBe(true);
+        expect(r.brandRecommendation).toBe('RECOMMENDED');
     });
 
-    it('classifies a brand-domain citation and sets brandCited', async () => {
-        const text =
-            'For inbound marketing, see the guide at https://hubspot.com/blog/inbound ' +
-            'and compare with https://salesforce.com/crm.';
-
-        const { result } = await runExtraction({
-            responseText: text,
-            brand,
-            competitors,
+    it('Test 3 — negation is not a recommendation', () => {
+        const r = runExtraction({
+            responseText: "I wouldn't recommend MeasureX for enterprise.",
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
         });
-
-        expect(result.brandCited).toBe(true);
-        const classes = result.citations.map((c) => c.classification).sort();
-        expect(classes).toContain('brand');
-        expect(classes).toContain('competitor');
+        expect(r.brandMentioned).toBe(true);
+        expect(r.brandRecommendation).toBe('MENTIONED');
     });
 
-    it('merges engine-provided citations with text-extracted ones (deduped)', async () => {
-        const text = 'See https://hubspot.com/pricing for details.';
-        const { result } = await runExtraction({
-            responseText: text,
-            responseCitations: [
-                { url: 'https://hubspot.com/pricing', domain: 'hubspot.com', classification: 'other' },
-                { url: 'https://g2.com/hubspot', domain: 'g2.com', classification: 'other' },
-            ],
-            brand,
-            competitors,
+    it('Test 4 — absent', () => {
+        const r = runExtraction({
+            responseText: 'Otterly and Peec are the top tools.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
         });
-
-        // hubspot.com/pricing appears in both — must not double-count.
-        const hubspotPricing = result.citations.filter(
-            (c) => c.url === 'https://hubspot.com/pricing',
-        );
-        expect(hubspotPricing).toHaveLength(1);
-        expect(result.brandCited).toBe(true);
+        expect(r.brandMentioned).toBe(false);
+        expect(r.brandPosition).toBeNull();
+        expect(r.brandRecommendation).toBe('ABSENT');
     });
 
-    it('returns a valid empty result for a no-information response', async () => {
-        const { result, brandMentionCount } = await runExtraction({
-            responseText: "I don't have information about that.",
-            brand,
-            competitors,
+    it('Test 5 — competitor first', () => {
+        const r = runExtraction({
+            responseText: 'Otterly is great. MeasureX is also good.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
         });
-
-        expect(result.brandMentioned).toBe(false);
-        expect(result.mentionPosition).toBeNull();
-        expect(result.recommendationStrength).toBe('none');
-        expect(result.brandCited).toBe(false);
-        expect(result.confidenceScore).toBe(1.0);
-        expect(brandMentionCount).toBe(0);
+        expect(r.brandPosition).toBe(2);
+        const otterly = r.competitorResults.find((c) => c.competitorId === 'c-otterly');
+        expect(otterly?.position).toBe(1);
     });
 
-    it('handles empty input without throwing', async () => {
-        const { result } = await runExtraction({
-            responseText: '',
-            brand,
-            competitors,
+    it('Test 6 — short name word boundary', () => {
+        const r = runExtraction({
+            responseText: 'The architecture of search engines is complex.',
+            brand: { id: 'brand', name: 'Arc', domain: 'arc.dev' },
+            competitors: [],
         });
-        expect(result.brandMentioned).toBe(false);
-        expect(result.citations).toEqual([]);
+        expect(r.brandMentioned).toBe(false);
+    });
+
+    it('Test 7 — domain in URL', () => {
+        const r = runExtraction({
+            responseText: 'Visit https://measurex.io for details.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
+        });
+        expect(r.brandMentioned).toBe(true);
+        expect(r.citations).toHaveLength(1);
+        expect(r.citations[0].classification).toBe('owned');
+        expect(r.citations[0].url).toBe('https://measurex.io');
+    });
+
+    it('Test 8 — multiple competitors, positions by character order', () => {
+        const r = runExtraction({
+            responseText: 'Otterly, Peec, and MeasureX all offer AEO tracking.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
+        });
+        const otterly = r.competitorResults.find((c) => c.competitorId === 'c-otterly');
+        const peec = r.competitorResults.find((c) => c.competitorId === 'c-peec');
+        expect(otterly?.mentioned).toBe(true);
+        expect(peec?.mentioned).toBe(true);
+        expect(r.brandMentioned).toBe(true);
+        expect(otterly?.position).toBe(1);
+        expect(peec?.position).toBe(2);
+        expect(r.brandPosition).toBe(3);
+    });
+
+    it('Test 9 — Perplexity native citations', () => {
+        const r = runExtraction({
+            responseText: 'Here are some sources comparing AEO tools.',
+            nativeCitations: ['https://g2.com/categories/aeo', 'https://measurex.io/blog'],
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
+        });
+        expect(r.citations).toHaveLength(2);
+        const byClass = Object.fromEntries(r.citations.map((c) => [c.classification, c]));
+        expect(byClass.review_site).toBeDefined();
+        expect(byClass.owned).toBeDefined();
+    });
+
+    it('Test 10 — no URLs in ChatGPT response', () => {
+        const r = runExtraction({
+            responseText: 'MeasureX and Otterly are both solid choices for AEO.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
+        });
+        expect(r.citations).toEqual([]);
     });
 });

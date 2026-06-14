@@ -1,82 +1,53 @@
 import * as React from 'react';
-import { requireAuth } from '@/lib/auth/utils';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/api/auth';
 import { db } from '@/lib/db';
-import { Sidebar } from '@/components/dashboard/sidebar';
-import type {
-    DashboardUser,
-    WorkspaceRole,
-    WorkspaceSummary,
-} from '@/components/dashboard/types';
+import { SignOutButton } from '@/components/dashboard/sign-out-button';
 
 /**
- * Dashboard layout — wraps every page under the (dashboard) route group.
+ * Dashboard shell (brand-scoped — one user, one brand). Redirects unauthenticated
+ * users to /login and not-yet-onboarded users to /onboarding.
  *
- * Responsibilities:
- * 1. Require authentication; unauth'd users are redirected to /login.
- * 2. Load the user's workspaces directly from the DB (server component).
- * 3. Render the Sidebar + main content shell.
- *
- * Active-workspace selection is intentionally simple at this layer: we
- * default to the first workspace returned by the DB. Per-page workspace
- * routing (e.g. /dashboard/[workspaceId]/...) is layered on by later tasks.
+ * NOTE: this is the minimal shell for the §F3 onboarding landing. The full
+ * dashboard (PRD §F7/§F8) is built in a later chunk.
  */
 export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const session = await requireAuth();
-
-    const userId = session.user?.id;
-    if (!userId) {
-        // Shouldn't happen — requireAuth() guarantees a session — but TS is strict.
-        throw new Error('Authenticated session is missing user id');
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login?callbackUrl=/dashboard');
     }
 
-    const memberships = await db.workspaceMember.findMany({
-        where: {
-            userId,
-            workspace: { deletedAt: null },
-        },
-        include: { workspace: true },
-        orderBy: { createdAt: 'asc' },
+    const brand = await db.brand.findUnique({
+        where: { userId: user.id },
+        select: { id: true },
     });
-
-    const workspaces: WorkspaceSummary[] = memberships.map((m) => ({
-        id: m.workspace.id,
-        name: m.workspace.name,
-        role: normalizeRole(m.role),
-    }));
-
-    const activeWorkspaceId = workspaces[0]?.id ?? null;
-
-    const user: DashboardUser = {
-        id: userId,
-        email: session.user?.email ?? '',
-        name: session.user?.name ?? null,
-        image: session.user?.image ?? null,
-    };
+    if (!brand) {
+        redirect('/onboarding');
+    }
 
     return (
-        <div className="flex min-h-screen bg-white">
-            <Sidebar
-                workspaces={workspaces}
-                activeWorkspaceId={activeWorkspaceId}
-                user={user}
-            />
-            <main className="flex-1 overflow-x-hidden">
-                <div className="mx-auto w-full max-w-7xl px-6 py-8 md:px-8 md:py-10">
-                    {children}
+        <div className="min-h-screen bg-slate-50">
+            <header className="border-b border-slate-200 bg-white">
+                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+                    <Link href="/dashboard" className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-lg bg-brand-gradient" aria-hidden="true" />
+                        <span className="text-lg font-bold text-slate-900">MeasureX</span>
+                    </Link>
+                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                        <span className="hidden md:inline">{user.email}</span>
+                        <Link href="/dashboard/settings" className="font-medium text-slate-600 transition-colors hover:text-slate-900">
+                            Settings
+                        </Link>
+                        <SignOutButton />
+                    </div>
                 </div>
-            </main>
+            </header>
+            <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
         </div>
     );
-}
-
-/**
- * Coerce the DB role string to our union. Anything unexpected falls back to
- * `viewer` — the safer default.
- */
-function normalizeRole(role: string): WorkspaceRole {
-    return role === 'owner' ? 'owner' : 'viewer';
 }

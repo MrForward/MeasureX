@@ -7,10 +7,11 @@ import type { NextRequest } from 'next/server';
  * Patterns are matched against the request pathname.
  */
 const PUBLIC_PREFIXES = [
-    '/',          // landing page (exact match handled below)
+    '/',           // landing page (exact match handled below)
     '/login',
-    '/api/auth',  // NextAuth endpoints
-    '/api/jobs',  // Internal job execution webhook
+    '/welcome',    // post-checkout confirmation (pre sign-in)
+    '/api/auth',   // NextAuth endpoints
+    '/api/stripe', // Stripe checkout (pre-auth) + webhook (Stripe-signed)
 ];
 
 function isPublicRoute(pathname: string): boolean {

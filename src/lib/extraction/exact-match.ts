@@ -1,148 +1,102 @@
 /**
- * Exact-match entity extraction.
+ * Exact-match brand / competitor detection (PRD §F5a).
  *
- * Finds case-insensitive, word-boundary-aware occurrences of configured brand
- * and competitor names (and their aliases) within a raw AI engine response.
+ * For a given entity (name + domain), scans the raw response for:
+ *   - the NAME via a case-insensitive `\b…\b` word-boundary regex, so "Arc"
+ *     does not match "architecture" or "search";
+ *   - the DOMAIN as a literal, case-insensitive substring (e.g. "measurex.io").
  *
- * This is the first, cheapest stage of the entity extraction pipeline
- * ("algorithmic first, LLM second"). It is implemented as a pure, deterministic
- * function with no side effects.
+ * Short-name rule (PRD §F5a): if the name is fewer than 3 characters, name
+ * matching is skipped entirely and only the domain match counts. This prevents
+ * 1-2 character names from generating false positives.
  *
- * Validates: Requirement 5.1 (exact match of brand name, aliases, competitor names)
- * Validates: Requirement 5.6 / design Property 8 (exact matches → confidence 1.0)
- * Validates: Requirement 17 (avoid false positives via word boundaries; longest-match-first)
+ * Pure and deterministic — no I/O, no side effects.
  */
 
-import { EXACT_MATCH_CONFIDENCE } from './confidence';
-import type { EntityMatch, MatchableEntity } from './types';
+import type { EntityMatchResult } from './types';
 
-/**
- * Escape characters that carry special meaning inside a regular expression so
- * that an entity name is matched literally.
- *
- * For example "Monday.com" must match a literal dot, not "any character", and
- * names containing parentheses or "+" must not corrupt the compiled pattern.
- */
+/** Escape regex metacharacters so a name/domain is matched literally. */
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Build a global, case-insensitive regular expression that matches `phrase`
- * only when it is not directly adjacent to an alphanumeric character.
- *
- * Using explicit alphanumeric look-arounds (rather than `\b`) keeps the
- * boundary semantics predictable for names containing punctuation such as
- * "Monday.com": "Force" will not match inside "Salesforce" and "hub" will not
- * match inside "GitHub", but "Monday.com" still matches as a standalone token.
- */
-function buildPattern(phrase: string): RegExp {
-    const escaped = escapeRegExp(phrase);
-    return new RegExp(`(?<![A-Za-z0-9])${escaped}(?![A-Za-z0-9])`, 'gi');
+/** Collect the start offsets of every `\bname\b` match (case-insensitive). */
+function nameMatchOffsets(text: string, name: string): number[] {
+    const pattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'gi');
+    const offsets: number[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+        offsets.push(match.index);
+        if (match.index === pattern.lastIndex) {
+            pattern.lastIndex += 1; // guard against zero-length matches
+        }
+    }
+    return offsets;
 }
 
-interface CandidateMatch extends EntityMatch {
-    /** Exclusive end index of the match in the source text. */
-    end: number;
-}
-
-/**
- * Return the unique, non-empty set of searchable strings for an entity:
- * its primary name plus all aliases. Blank/whitespace-only values are dropped
- * (an empty pattern would otherwise match everywhere).
- */
-function searchTermsFor(entity: MatchableEntity): string[] {
-    const terms = [entity.name, ...entity.aliases]
-        .filter((term): term is string => typeof term === 'string')
-        .map((term) => term.trim())
-        .filter((term) => term.length > 0);
-
-    return Array.from(new Set(terms));
-}
-
-/**
- * Find all exact matches of the supplied entities' names and aliases within
- * `text`.
- *
- * Behaviour:
- * - Case-insensitive ("HubSpot" === "hubspot" === "HUBSPOT").
- * - Word-boundary aware ("Force" does not match inside "Salesforce").
- * - Matches the primary name and every alias.
- * - Matches multi-word / punctuated names verbatim ("Zoho CRM", "Monday.com").
- * - Returns every occurrence; a name appearing multiple times yields multiple
- *   matches.
- * - Every returned match has `matchType: 'exact'` and `confidence: 1`.
- * - Longest-match-first: when matches overlap (e.g. "Zoho CRM" and "Zoho" at
- *   the same position), the longer match wins and the shorter is discarded.
- *
- * Results are ordered by their start position in the text.
- */
-export function findExactMatches(text: string, entities: MatchableEntity[]): EntityMatch[] {
-    if (!text || entities.length === 0) {
+/** Collect the start offsets of every literal domain occurrence (case-insensitive). */
+function domainMatchOffsets(text: string, domain: string): number[] {
+    const trimmed = domain.trim();
+    if (trimmed.length === 0) {
         return [];
     }
-
-    const candidates: CandidateMatch[] = [];
-
-    for (const entity of entities) {
-        for (const term of searchTermsFor(entity)) {
-            const pattern = buildPattern(term);
-            let match: RegExpExecArray | null;
-
-            while ((match = pattern.exec(text)) !== null) {
-                const start = match.index;
-                const end = start + match[0].length;
-
-                candidates.push({
-                    entityId: entity.id,
-                    entityType: entity.type,
-                    matchedText: text.slice(start, end),
-                    matchType: 'exact',
-                    confidence: EXACT_MATCH_CONFIDENCE,
-                    position: start,
-                    end,
-                });
-
-                // Guard against pathological zero-length matches (defensive —
-                // empty terms are already filtered out).
-                if (match.index === pattern.lastIndex) {
-                    pattern.lastIndex += 1;
-                }
-            }
+    const pattern = new RegExp(escapeRegExp(trimmed), 'gi');
+    const offsets: number[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+        offsets.push(match.index);
+        if (match.index === pattern.lastIndex) {
+            pattern.lastIndex += 1;
         }
     }
-
-    return resolveOverlaps(candidates);
+    return offsets;
 }
 
 /**
- * Apply a longest-match-first strategy: order candidates by start position and,
- * for matches sharing a start, by descending length. Greedily accept matches
- * that do not overlap an already-accepted span, discarding shorter overlapping
- * matches (e.g. "Zoho" inside "Zoho CRM").
+ * Detect an entity (brand or competitor) within `text`.
+ *
+ * Returns `mentioned`, `mentionCount` (distinct start offsets across name and
+ * domain matches), and `firstMentionPosition` (earliest offset, or null).
+ *
+ * @param text   the raw AI response text.
+ * @param name   the entity's display name (e.g. "MeasureX").
+ * @param domain the entity's domain (e.g. "measurex.io").
  */
-function resolveOverlaps(candidates: CandidateMatch[]): EntityMatch[] {
-    const sorted = [...candidates].sort((a, b) => {
-        if (a.position !== b.position) return a.position - b.position;
-        // Longer match first when starting at the same position.
-        const lengthDiff = b.end - b.position - (a.end - a.position);
-        if (lengthDiff !== 0) return lengthDiff;
-        // Stable, deterministic tiebreaker.
-        if (a.entityType !== b.entityType) return a.entityType < b.entityType ? -1 : 1;
-        return a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0;
-    });
+export function exactMatch(
+    text: string,
+    name: string,
+    domain: string,
+): EntityMatchResult {
+    const absent: EntityMatchResult = {
+        mentioned: false,
+        mentionCount: 0,
+        firstMentionPosition: null,
+    };
 
-    const accepted: CandidateMatch[] = [];
-    let lastAcceptedEnd = -1;
-
-    for (const candidate of sorted) {
-        if (candidate.position >= lastAcceptedEnd) {
-            accepted.push(candidate);
-            lastAcceptedEnd = candidate.end;
-        }
-        // Otherwise this candidate overlaps an already-accepted (longer or
-        // earlier) match and is discarded.
+    if (!text) {
+        return absent;
     }
 
-    return accepted.map(({ end: _end, ...rest }) => rest);
+    const trimmedName = (name ?? '').trim();
+
+    // Short-name rule: names under 3 chars are matched by domain only.
+    const offsets = new Set<number>();
+    if (trimmedName.length >= 3) {
+        for (const offset of nameMatchOffsets(text, trimmedName)) {
+            offsets.add(offset);
+        }
+    }
+    for (const offset of domainMatchOffsets(text, domain ?? '')) {
+        offsets.add(offset);
+    }
+
+    if (offsets.size === 0) {
+        return absent;
+    }
+
+    return {
+        mentioned: true,
+        mentionCount: offsets.size,
+        firstMentionPosition: Math.min(...offsets),
+    };
 }

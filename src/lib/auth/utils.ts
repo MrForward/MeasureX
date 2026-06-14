@@ -1,7 +1,6 @@
 import { getServerSession as nextAuthGetServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authConfig, isDevBypassEnabled, getDevBypassSession } from './config';
-import { db } from '@/lib/db';
 import type { Session } from 'next-auth';
 
 /**
@@ -33,59 +32,4 @@ export async function requireAuth(redirectTo?: string): Promise<Session> {
     }
 
     return session;
-}
-
-/**
- * Asserts the current user is a member of the given workspace with at least
- * the required role. Throws a 403-style error if not.
- *
- * Role hierarchy: owner > viewer
- *
- * @param workspaceId  - The workspace to check membership for.
- * @param requiredRole - Minimum role required. Defaults to 'viewer'.
- */
-export async function requireWorkspaceAccess(
-    workspaceId: string,
-    requiredRole: 'owner' | 'viewer' = 'viewer',
-): Promise<void> {
-    const session = await requireAuth();
-
-    const userId = session.user?.id;
-    if (!userId) {
-        throw new WorkspaceAccessError('User ID not found in session', 403);
-    }
-
-    const membership = await db.workspaceMember.findUnique({
-        where: {
-            workspaceId_userId: {
-                workspaceId,
-                userId,
-            },
-        },
-        select: { role: true },
-    });
-
-    if (!membership) {
-        throw new WorkspaceAccessError(
-            `User is not a member of workspace ${workspaceId}`,
-            403,
-        );
-    }
-
-    if (requiredRole === 'owner' && membership.role !== 'owner') {
-        throw new WorkspaceAccessError(
-            `Owner role required for workspace ${workspaceId}`,
-            403,
-        );
-    }
-}
-
-export class WorkspaceAccessError extends Error {
-    constructor(
-        message: string,
-        public readonly statusCode: number,
-    ) {
-        super(message);
-        this.name = 'WorkspaceAccessError';
-    }
 }

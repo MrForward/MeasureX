@@ -45,3 +45,6 @@ prisma/migrations/**/migration_lock.toml
 
 # OS
 Thumbs.db
+
+# Claude Code — local machine settings (keep launch.json shared)
+.claude/settings.local.json
