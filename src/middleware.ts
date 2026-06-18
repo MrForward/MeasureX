@@ -1,4 +1,3 @@
-import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -23,6 +22,18 @@ function isPublicRoute(pathname: string): boolean {
     );
 }
 
+/**
+ * NextAuth uses the DATABASE session strategy, so there is no JWT for middleware
+ * to read — it sets a session-token cookie (the `__Secure-` variant over HTTPS).
+ * Middleware does a cheap presence check; the real validation happens server-side
+ * in `getCurrentUser()` (every protected page/route resolves + verifies the
+ * session against the DB), so a stale/forged cookie still can't read data.
+ */
+const SESSION_COOKIES = [
+    'next-auth.session-token',
+    '__Secure-next-auth.session-token',
+];
+
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
@@ -31,18 +42,14 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Protect /dashboard/* and any other non-public routes
-    const token = await getToken({
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET,
-    });
+    const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
 
-    // Dev bypass: treat as authenticated when the env flag is set
+    // Dev bypass: treat as authenticated when the env flag is set (dev only).
     const isDevBypass =
         process.env.NODE_ENV === 'development' &&
         process.env.DEV_AUTH_BYPASS === 'true';
 
-    if (!token && !isDevBypass) {
+    if (!hasSession && !isDevBypass) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('callbackUrl', pathname);
         return NextResponse.redirect(loginUrl);
