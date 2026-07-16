@@ -23,6 +23,7 @@ describe('F5 extraction eval', () => {
         expect(r.brandMentioned).toBe(true);
         expect(r.brandPosition).toBe(1);
         expect(r.brandRecommendation).toBe('MENTIONED');
+        expect(r.promptScore).toBe(1);
     });
 
     it('Test 2 — recommendation', () => {
@@ -33,6 +34,7 @@ describe('F5 extraction eval', () => {
         });
         expect(r.brandMentioned).toBe(true);
         expect(r.brandRecommendation).toBe('RECOMMENDED');
+        expect(r.promptScore).toBe(3);
     });
 
     it('Test 3 — negation is not a recommendation', () => {
@@ -124,5 +126,37 @@ describe('F5 extraction eval', () => {
             competitors: [OTTERLY, PEEC],
         });
         expect(r.citations).toEqual([]);
+    });
+});
+
+describe('F6 position bonus integration', () => {
+    it('does not award the bonus when a tracked competitor is absent', () => {
+        const r = runExtraction({
+            responseText: 'MeasureX is useful. Otterly is another option.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
+        });
+
+        expect(r.promptScore).toBe(1);
+    });
+
+    it('awards the bonus only when the brand precedes every tracked competitor', () => {
+        const r = runExtraction({
+            responseText: 'MeasureX is useful. Otterly and Peec are alternatives.',
+            brand: BRAND,
+            competitors: [OTTERLY, PEEC],
+        });
+
+        expect(r.promptScore).toBe(2);
+    });
+
+    it('does not award a vacuous bonus when no competitors are tracked', () => {
+        const r = runExtraction({
+            responseText: 'MeasureX is useful.',
+            brand: BRAND,
+            competitors: [],
+        });
+
+        expect(r.promptScore).toBe(1);
     });
 });

@@ -48,7 +48,10 @@ function failed(engine: EngineId): EngineRunResult {
 describe('orchestrateScan', () => {
     it('scores a perfect scan (recommended + first everywhere) at 100', async () => {
         const runEngine: RunEngineFn = async (engine) =>
-            completed(engine, 'I recommend MeasureX as the best option. Otterly is also fine.');
+            completed(
+                engine,
+                'I recommend MeasureX as the best option. Otterly and Peec are also fine.',
+            );
 
         const result = await orchestrateScan({
             brand: BRAND,
@@ -139,7 +142,10 @@ describe('orchestrateScan', () => {
 
     it('computes delta against the previous score', async () => {
         const runEngine: RunEngineFn = async (engine) =>
-            completed(engine, 'I recommend MeasureX as the best option.');
+            completed(
+                engine,
+                'I recommend MeasureX as the best option. Otterly and Peec are alternatives.',
+            );
         const result = await orchestrateScan({
             brand: BRAND,
             competitors: COMPETITORS,

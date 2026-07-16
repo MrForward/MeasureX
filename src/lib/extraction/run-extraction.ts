@@ -23,6 +23,7 @@ import { rankByPosition, type RankableEntity } from './position-analysis';
 import { detectRecommendationStrength } from './recommendation-strength';
 import { extractUrls } from './url-extract';
 import { classifyCitations } from './citation-classify';
+import { scorePromptEngine } from '@/lib/metrics/visibility-score';
 import type {
     CompetitorResult,
     Extraction,
@@ -100,9 +101,9 @@ export function runExtraction(input: RunExtractionInput): Extraction {
         brandCited,
         brandRecommended: brandRecommendation === 'RECOMMENDED',
         brandFirstPosition: brandMatch.firstMentionPosition,
-        competitorPositions: competitorMatches
-            .map(({ match }) => match.firstMentionPosition)
-            .filter((p): p is number => p !== null),
+        competitorPositions: competitorMatches.map(
+            ({ match }) => match.firstMentionPosition,
+        ),
     });
 
     return {
@@ -121,7 +122,7 @@ interface PromptScoreInput {
     brandCited: boolean;
     brandRecommended: boolean;
     brandFirstPosition: number | null;
-    competitorPositions: number[];
+    competitorPositions: Array<number | null>;
 }
 
 /**
@@ -138,19 +139,16 @@ export function computePromptScore(input: PromptScoreInput): number {
         return 0;
     }
 
-    let base: number;
-    if (input.brandRecommended) {
-        base = 3;
-    } else if (input.brandCited) {
-        base = 2;
-    } else {
-        base = 1;
-    }
+    const beforeAllCompetitors =
+        input.competitorPositions.length > 0 &&
+        input.competitorPositions.every(
+            (pos) => pos !== null && input.brandFirstPosition! < pos,
+        );
 
-    const beforeAllCompetitors = input.competitorPositions.every(
-        (pos) => input.brandFirstPosition! < pos,
-    );
-    const bonus = beforeAllCompetitors ? 1 : 0;
-
-    return Math.min(4, base + bonus);
+    return scorePromptEngine({
+        mentioned: input.brandMentioned,
+        cited: input.brandCited,
+        recommended: input.brandRecommended,
+        beforeAllCompetitors,
+    });
 }
