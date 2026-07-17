@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
     title: 'MeasureX — AI Visibility Monitor',
     description:
-        'Track your brand\'s presence across AI answer engines like ChatGPT, Perplexity, and Google AI Overviews.',
+        'Track your brand\'s presence across AI answer engines like ChatGPT and Perplexity.',
 };
 
 export default function RootLayout({

@@ -2,7 +2,7 @@
  * Shared type definitions for MeasureX.
  */
 
-export type EngineId = 'chatgpt' | 'perplexity' | 'google_ai';
+export type EngineId = 'chatgpt' | 'perplexity';
 
 export type MentionPosition = 'first' | 'middle' | 'last' | null;
 

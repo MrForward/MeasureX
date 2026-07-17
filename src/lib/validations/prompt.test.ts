@@ -35,6 +35,10 @@ describe('CreatePromptSchema', () => {
         expect(CreatePromptSchema.safeParse({ ...valid, engines: ['bing'] }).success).toBe(false);
     });
 
+    it('rejects Google AI because the MVP supports exactly two engines', () => {
+        expect(CreatePromptSchema.safeParse({ ...valid, engines: ['google_ai'] }).success).toBe(false);
+    });
+
     it('de-duplicates engines', () => {
         const r = CreatePromptSchema.parse({ ...valid, engines: ['chatgpt', 'chatgpt', 'perplexity'] });
         expect(r.engines).toEqual(['chatgpt', 'perplexity']);
