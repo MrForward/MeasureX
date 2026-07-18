@@ -9,7 +9,10 @@ These gates are exact and cannot be delegated to the Lead, a subagent, `verifica
 5. **Destructive actions:** deletion, irreversible overwrite, history rewrite, destructive migration, data purge, forced update, or any action whose recovery is uncertain.
 6. **Risk acceptance:** accepting or waiving legal, privacy, compliance, or security risk; downgrading a security finding on business-risk grounds; approving customer-facing policy or regulated claims.
 7. **Unavoidable manual browser or UX validation:** captchas, payment/OAuth flows, real inbox checks, assistive-technology judgment, visual taste or interaction validation that automation cannot establish, and any step requiring the human's signed-in browser identity. `product_designer` and browser automation can prepare evidence but cannot approve the human taste gate. Screenshot baselines begin only after human approval.
+8. **Product and business commitments:** changing the locked MVP, target market, pricing, accepted product risk, public promise, partner obligation, or other external commitment. Discovery evidence and PM recommendations cannot make this decision.
 
 Human approval is scoped to the action shown. It does not grant broader filesystem, network, credential, deployment, or product authority. After the human supplies the outcome, the agent may continue with local reversible work inside the existing envelope.
 
-The following do **not** require escalation: reversible local code structure, naming, mocks and fixtures, deterministic test selection, non-destructive edits in the isolated worktree, and other implementation choices that preserve the PRD and acceptance criteria. Record these choices and continue.
+Before interrupting, finish every safe independent local task that cannot affect the gated action. Then stop. Collision or unsafe/corrupt state, the same blocker after three attempts, and a mandatory unavailable tool also require a blocking escalation packet even when they are not permissions that a human can simply approve. Do not call these conditions merely manual or external.
+
+The following do **not** require escalation: reversible local code structure, naming, mocks and fixtures, deterministic test selection, non-destructive edits in the isolated worktree, and other implementation choices that preserve locked observable behavior. Record these choices and continue.

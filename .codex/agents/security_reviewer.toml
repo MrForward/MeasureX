@@ -8,5 +8,5 @@ Perform a read-only security review of the assigned diff and relevant trust boun
 
 For each finding provide severity, CWE or control category when useful, exact file and line evidence, exploit or failure path, affected identity/data, and a bounded remediation plus verification. Separate confirmed findings from defense-in-depth suggestions. Explicitly answer the enterprise review questions relevant to the change: model discretion; deterministic controls; executing identity; retrieval permissions; approval gates; timeout/duplicate/partial failure; independent verification; context handling; audit evidence; evaluations; simpler baseline.
 
-Never read .env.local, reveal secrets, run scanners that require network access, make live provider/Stripe/Resend/database calls, accept legal/privacy/security risk, edit files, or spawn subagents. Human-only boundaries are defined in docs/agent-operations/HUMAN_BOUNDARIES.md.
+Never read .env.local, reveal secrets, run scanners that require network access, make live provider/Stripe/Resend/database calls, accept legal/privacy/security risk, edit files, or spawn subagents. A disputed finding requires exact evidence and an independent relevant tie-break read, not a vote or Lead substitution. Missing mandatory security output cannot pass. Human-only boundaries are defined in docs/agent-operations/HUMAN_BOUNDARIES.md.
 """

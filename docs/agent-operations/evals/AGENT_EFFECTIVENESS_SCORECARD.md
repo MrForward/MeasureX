@@ -4,10 +4,13 @@ Score from durable task artifacts; use `not observable` instead of invented numb
 
 ## Task identity
 
-- Task / feature:
+- Task ID / feature / timestamps:
 - Base / head / worktree:
+- Run artifact path / UI artifact path:
+- Requirements-lock ID / version:
 - Skills invoked:
-- Agents, models, effort, and assignments:
+- Agents, models, effort, waves, attempts, timeouts, and assignments:
+- Evidence owners / conflicts / dispositions:
 - Single-agent baseline task or reason unavailable:
 
 ## Measures
@@ -25,6 +28,9 @@ Score from durable task artifacts; use `not observable` instead of invented numb
 | Completion integrity | False PASS, premature completion, or omitted gate count |  |  |  |
 | Time | End-to-end and active time where observable |  |  |  |
 | Usage | Tokens, model calls, and tool calls where observable |  |  |  |
+| Timeout recovery | Narrow retries, mandatory-role failures, and correct blocked outcomes |  |  |  |
+| Wave integrity | Required roles scheduled, awaited, and slots released without omission |  |  |  |
+| Requirements integrity | Lock observed; clarifications and behavior changes routed correctly |  |  |  |
 
 ## Outcome
 
@@ -36,3 +42,5 @@ Score from durable task artifacts; use `not observable` instead of invented numb
 - Keep, simplify, or retire the multi-agent treatment:
 
 Do not treat more agents, findings, tokens, or elapsed time as success. The operating layer is effective only when it improves acceptance evidence, defect detection, safe completion, or useful context isolation enough to justify its overhead.
+
+The schemas and `evals/agent-ops/validate.mjs` validate artifact structure only. Adversarial scenarios require actual tabletop or forward runs before their behavioral invariants can be scored; structural success is not behavioral proof.

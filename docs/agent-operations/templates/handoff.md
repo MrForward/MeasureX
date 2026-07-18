@@ -1,6 +1,8 @@
 # Collision-aware handoff
 
-- Task and outcome:
+- Task ID / task / outcome:
+- Start / end timestamps and timezone:
+- Run artifact path / UI artifact path:
 - Worktree path:
 - Branch, base commit, and final HEAD:
 - Initial `git status --short`:
@@ -16,31 +18,35 @@
 ## Scope and decisions
 
 - PRD criteria covered:
+- Requirements lock ID / version / confirmation:
 - Locked-MVP invariants checked:
 - Decision IDs:
 - Reversible choices made:
 
 ## Agent, model, and skill ledger
 
-| Agent | Model / effort | Skill | Assignment | Artifact / evidence |
-|---|---|---|---|---|
-| Lead |  |  |  |  |
+| Agent | Model / effort | Skill | Wave / assignment | Attempts / timeouts | Artifact / evidence owner | Usage observed |
+|---|---|---|---|---|---|---|
+| Lead |  |  |  |  |  |  |
 
 ## Critique and verification
 
 - Round 1 findings and dispositions:
+- Conflicts, tie-break evidence, and dispositions:
 - Round 2 verification:
 - Commands run with exact results:
 - Diff inspected by:
 - Design brief / UI rubric / screenshot evidence:
 - Manual browser or human taste gate:
 - Effectiveness scorecard and single-agent baseline:
+- Wave lifecycle and released slots:
 
 ## Remaining risk and gates
 
 - Known limitations:
 - Unresolved findings:
 - Human-only actions still required:
+- Repeated blocker / mandatory unavailable tool:
 - Stale assumptions the receiver must re-check:
 - Safe next action:
 
