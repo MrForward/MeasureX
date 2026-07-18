@@ -1,49 +1,43 @@
-# Enterprise Agent Harness Guidance
+# AGENTS.md — MeasureX Build Instructions
 
-Use the reference in `docs/enterprise-agent-harness.md` when designing, reviewing, or implementing agentic and enterprise AI systems in this repository.
+## Source of truth
+MeasureX_MVP_PRD.md is the product spec. When in doubt, follow the PRD. Do not add features not in the PRD. Do not simplify features described in the PRD.
 
-## Operating model
+## Architecture decisions (locked)
+- **Schema:** PRD Section 5 is the exact Prisma schema. Do not modify field names, types, or relations.
+- **2 engines only:** ChatGPT (gpt-4o-mini) and Perplexity (sonar). Do not add Google AI, Gemini, or any third engine.
+- **Extraction is rule-based:** No LLM calls for entity detection, citation extraction, or recommendation classification. String matching and regex only. LLM calls are reserved for prompt generation (onboarding) and future content recommendations (not in MVP).
+- **Scans are client-driven batches (no server-side background work):** No job queue, no QStash, no Redis, no async workers — and NO detached/fire-and-forget promises (they die when a Vercel serverless function suspends after responding). `POST /api/scan/run` creates the `Scan` + every `EngineRun` as `pending` and returns immediately with `{ scanId, totalRuns }`. The client then calls `POST /api/scan/process` repeatedly; each call processes the next batch of up to 4 pending runs sequentially (one engine call at a time → extraction → store), and the call that drains the last pending run finalizes the scan (F6 scoring) and sends the F10 email **exactly once**, guarded by an atomic status compare-and-swap (`running` → terminal). `GET /api/scan/status` reaps scans stuck in `running`. Core lives in `src/lib/scan/batch.ts`. This is intentional — do not reintroduce detached background processing or a synchronous long-running request handler.
+- **No workspaces, no RBAC, no teams:** One user = one brand = one account. Auth is session-based via NextAuth.
+- **Stripe is the only billing system:** No free tier in MVP. User must pay $9/mo before accessing onboarding.
 
-Treat the agent harness as three separate layers:
+## Code quality rules
+- Every new function that computes or transforms data must have a vitest test.
+- Extraction pipeline must pass all 10 F5 eval cases (see PRD Section 4, F5 eval table).
+- Scoring engine must pass all 5 F6 eval cases (see PRD Section 4, F6 eval table).
+- Do not leave `console.log` in production code. Use structured error handling.
+- TypeScript strict mode. No `any` types except in third-party API response parsing where the shape is genuinely unknown.
 
-1. **Adaptive inner harness**
-   - The model may decompose tasks, choose search strategies, sequence tools, parallelize work, create subagents, select relevant context, invoke critics or verifiers, and replan after failure.
-   - Use dynamic workflows only when they measurably improve correctness, coverage, or completion rate. Do not add multi-agent complexity by default.
+## What NOT to build
+- Automated scheduler / cron / QStash (post-MVP, week 4)
+- Content recommendations (post-MVP, week 5)
+- Score trend sparkline (post-MVP, needs 3+ data points)
+- Google AI Overview engine (post-MVP, $29 plan)
+- CSV export, PDF reports, shareable URLs (post-MVP)
+- Admin panel, usage tracking, cost tracking
+- In-app notifications (email only via Resend)
+- Fuzzy matching, Levenshtein distance, LLM-based disambiguation
 
-2. **Deterministic outer envelope**
-   - The model must never determine its own identity, permissions, credentials, approval rules, sandbox/network boundaries, audit requirements, or acceptance criteria.
-   - Enforce least privilege, permission-aware retrieval, typed tools for consequential actions, human approval where required, bounded runtime/token/tool budgets, and immutable audit events.
+## Dependencies
+**Must be installed:** next, react, @prisma/client, prisma, next-auth, @auth/prisma-adapter, openai, stripe, @anthropic-ai/sdk, resend, zod, tailwindcss, vitest
+**Must NOT be installed:** @upstash/redis, @upstash/qstash, @aws-sdk/client-s3, recharts, fast-levenshtein
 
-3. **Traditional reliability plane**
-   - Apply standard distributed-systems controls independently of model reasoning: timeouts, bounded retries, idempotency, rate limits, durable checkpoints, rollback or compensation, dead-letter handling, versioning, canaries, regression tests, SLOs, incident response, and kill switches.
+## Environment variables required
+DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_API_KEY, RESEND_API_KEY, EMAIL_FROM, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, NEXT_PUBLIC_APP_URL
 
-## Design rules
-
-- Separate planning, execution, verification, and synthesis when context contamination or self-evaluation is likely to cause errors.
-- Keep large intermediate outputs out of the model context. Store them externally and expose previews, handles, or selected slices.
-- Use progressive tool discovery rather than loading every tool schema upfront.
-- Preserve source permissions during retrieval. Never rely on post-retrieval filtering as the primary security boundary.
-- Inject credentials outside model-visible context. Scope them to the user, agent, operation, and duration.
-- Treat citations as evidence pointers, not proof of answer correctness. Verify entailment, freshness, authority, and permission.
-- Put deterministic checks around irreversible, security-sensitive, user-facing, or externally observable actions.
-- Record complete execution traces with model, prompt, tool, policy, context, and artifact versions.
-- Evaluate both task quality and system behavior. Include permission leakage, unsafe writes, unsupported claims, recovery behavior, latency, and cost.
-- Prefer a single capable agent loop for simple tasks. Escalate to dynamic or multi-agent workflows only when the task structure justifies coordination overhead.
-
-## Review checklist
-
-When reviewing an agent feature, explicitly answer:
-
-- What may the model decide dynamically?
-- What is enforced outside the model?
-- Under whose identity does each read and write execute?
-- How are permissions preserved through retrieval and synthesis?
-- Which actions require approval?
-- What happens after timeout, duplicate delivery, partial completion, or tool failure?
-- How is completion verified independently of the worker?
-- What context is persisted, isolated, summarized, or discarded?
-- What artifacts and traces are available for audit and replay?
-- Which offline and online evaluations gate release?
-- What is the simpler non-agent or single-agent baseline?
-
-Do not present vendor-reported performance claims as independently validated. Separate documented facts, engineering inference, and general design principles.
+## File structure conventions
+- API routes: src/app/api/{resource}/route.ts
+- Page routes: src/app/(dashboard)/dashboard/page.tsx, src/app/page.tsx
+- Lib modules: src/lib/{domain}/{module}.ts with co-located {module}.test.ts
+- Components: src/components/{domain}/{component}.tsx
+- Shared UI: src/components/ui/ (shadcn)
