@@ -1,12 +1,12 @@
 # MeasureX
 
-**AI Visibility Monitor** — Track your brand's presence across AI answer engines (ChatGPT, Perplexity, Google AI Overviews).
+**AI Visibility Monitor** — Track your brand's presence across ChatGPT and Perplexity.
 
 MeasureX shows marketers, agencies, and growth teams where their brands appear in AI-generated responses, how they compare against competitors, and what to do about it — backed by a transparent evidence layer of raw prompts, answers, and citations.
 
 ## What It Does
 
-- **Tracks visibility** across ChatGPT, Perplexity, and Google AI Overviews
+- **Tracks visibility** across ChatGPT and Perplexity
 - **Detects brand mentions** and citations using exact + fuzzy matching
 - **Computes a visibility score** (0-100) per prompt and overall
 - **Compares against competitors** with share-of-voice metrics
