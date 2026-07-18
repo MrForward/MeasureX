@@ -2,16 +2,16 @@
 
 **AI Visibility Monitor** — Track your brand's presence across ChatGPT and Perplexity.
 
-MeasureX shows marketers, agencies, and growth teams where their brands appear in AI-generated responses, how they compare against competitors, and what to do about it — backed by a transparent evidence layer of raw prompts, answers, and citations.
+MeasureX shows B2B SaaS growth and content marketers where their brands appear in AI-generated responses and how that visibility compares with competitors, backed by the raw prompts, answers, and citations.
 
 ## What It Does
 
 - **Tracks visibility** across ChatGPT and Perplexity
-- **Detects brand mentions** and citations using exact + fuzzy matching
-- **Computes a visibility score** (0-100) per prompt and overall
-- **Compares against competitors** with share-of-voice metrics
-- **Generates recommendations** backed by evidence from raw responses
-- **Refreshes weekly** with optional manual runs
+- **Detects brand mentions** and citations with rule-based extraction
+- **Computes prompt-engine scores** and an overall visibility score (0-100)
+- **Compares visibility and prompt gaps** against up to two competitors
+- **Shows raw AI answers** with highlighted mentions and citation evidence
+- **Runs scans manually** with progress and partial-result handling
 
 ## Tech Stack
 
@@ -20,10 +20,11 @@ MeasureX shows marketers, agencies, and growth teams where their brands appear i
 | Framework | Next.js 14 (App Router) + TypeScript |
 | Styling | Tailwind CSS + shadcn/ui |
 | Database | Neon PostgreSQL + Prisma |
-| Queue | Upstash Redis + QStash |
-| Storage | Cloudflare R2 |
 | Auth | NextAuth.js |
+| Payments | Stripe Checkout + Customer Portal |
 | Email | Resend |
+| Answer engines | OpenAI (`gpt-4o-mini`) + Perplexity (`sonar`) |
+| Prompt suggestions | Anthropic Claude Haiku |
 | Hosting | Vercel |
 
 ## Getting Started
@@ -52,17 +53,16 @@ Open [http://localhost:3000](http://localhost:3000).
 src/
 ├── app/              # Next.js App Router pages
 ├── components/       # React components (ui, dashboard, shared)
-├── lib/              # Core logic (engines, extraction, metrics, config, queue)
+├── lib/              # Core logic (engines, extraction, metrics, scan)
 ├── scripts/          # Seed scripts
 └── types/            # TypeScript definitions
 ```
 
 ## Documentation
 
-Full specs are in `.kiro/specs/ai-visibility-monitor/`:
-- `requirements.md` — Feature requirements with acceptance criteria
-- `design.md` — Architecture, data models, and integration details
-- `tasks.md` — Implementation plan
+[`MeasureX_MVP_PRD.md`](MeasureX_MVP_PRD.md) is the authoritative source for current product scope, requirements, and acceptance intent.
+
+The documents under `.kiro/specs/ai-visibility-monitor/` are legacy pre-pivot planning artifacts. They are retained only for historical context and are not authoritative; follow `MeasureX_MVP_PRD.md` whenever they conflict.
 
 ## Development Status
 

@@ -39,6 +39,10 @@ describe('CreatePromptSchema', () => {
         expect(CreatePromptSchema.safeParse({ ...valid, engines: ['google_ai'] }).success).toBe(false);
     });
 
+    it('rejects Google AI when mixed with a supported engine', () => {
+        expect(CreatePromptSchema.safeParse({ ...valid, engines: ['chatgpt', 'google_ai'] }).success).toBe(false);
+    });
+
     it('de-duplicates engines', () => {
         const r = CreatePromptSchema.parse({ ...valid, engines: ['chatgpt', 'chatgpt', 'perplexity'] });
         expect(r.engines).toEqual(['chatgpt', 'perplexity']);
@@ -56,5 +60,9 @@ describe('UpdatePromptSchema', () => {
 
     it('rejects an invalid status', () => {
         expect(UpdatePromptSchema.safeParse({ status: 'deleted' }).success).toBe(false);
+    });
+
+    it('rejects Google AI engine updates', () => {
+        expect(UpdatePromptSchema.safeParse({ engines: ['google_ai'] }).success).toBe(false);
     });
 });
