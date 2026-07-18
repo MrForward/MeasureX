@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "task_id": "synthetic-structure-only",
+  "synthetic": true,
+  "status": "BLOCKED",
+  "timestamps": { "started_at": null, "ended_at": null },
+  "artifact_paths": {
+    "run": "artifacts/agent-runs/synthetic-structure-only/",
+    "ui": null
+  },
+  "artifact_ownership": [
+    {
+      "path": "artifacts/agent-runs/synthetic-structure-only/run.json",
+      "owner": "Lead",
+      "scope": "control",
+      "serialized": true
+    }
+  ],
+  "requirement_lock": {
+    "id": null,
+    "version": null,
+    "status": "NOT_APPLICABLE",
+    "pm_owner": null,
+    "lead_confirmed": false
+  },
+  "waves": [],
+  "agents": [],
+  "evidence": [
+    {
+      "id": "synthetic-record-shape",
+      "owner": "fixture",
+      "status": "SYNTHETIC",
+      "artifact": "evals/agent-ops/examples/synthetic-run-record.json"
+    }
+  ],
+  "conflicts": [],
+  "verification": [
+    {
+      "command": "not executed; synthetic structure fixture",
+      "status": "NOT_RUN",
+      "exit_code": null,
+      "artifact": null,
+      "tracked_state_unchanged": null
+    }
+  ],
+  "human_gates": [],
+  "usage": { "observable": false },
+  "limitations": [
+    "Synthetic fixture validates structure only and contains no behavioral, command, model, or passing evidence."
+  ]
+}

@@ -7,6 +7,10 @@
 # testing
 /coverage
 
+# local agent evidence (task-scoped, never tracked)
+/artifacts/agent-runs/*/
+/artifacts/ui/*/
+
 # next.js
 /.next/
 /out/
