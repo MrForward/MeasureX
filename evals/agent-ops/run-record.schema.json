@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://measurex.local/schemas/agent-run-record.json",
+  "title": "MeasureX agent run record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "synthetic",
+    "status",
+    "timestamps",
+    "artifact_paths",
+    "artifact_ownership",
+    "requirement_lock",
+    "waves",
+    "agents",
+    "evidence",
+    "conflicts",
+    "verification",
+    "human_gates",
+    "usage",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "task_id": { "type": "string", "minLength": 1 },
+    "synthetic": { "type": "boolean" },
+    "status": { "enum": ["IN_PROGRESS", "PASS", "FAIL", "ATTENTION", "HUMAN_GATED", "BLOCKED"] },
+    "timestamps": {
+      "type": "object",
+      "required": ["started_at", "ended_at"],
+      "properties": {
+        "started_at": { "type": ["string", "null"] },
+        "ended_at": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "artifact_paths": {
+      "type": "object",
+      "required": ["run", "ui"],
+      "properties": {
+        "run": { "type": "string", "minLength": 1 },
+        "ui": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "artifact_ownership": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifactOwnership" }
+    },
+    "requirement_lock": {
+      "type": "object",
+      "required": ["id", "version", "status", "pm_owner", "lead_confirmed"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] },
+        "status": { "enum": ["NOT_APPLICABLE", "DRAFT", "REQUIREMENTS_LOCKED", "CHANGE_REQUESTED", "SUPERSEDED"] },
+        "pm_owner": { "type": ["string", "null"] },
+        "lead_confirmed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "waves": { "type": "array", "items": { "$ref": "#/$defs/wave" } },
+    "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } },
+    "verification": { "type": "array", "items": { "$ref": "#/$defs/verification" } },
+    "human_gates": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "usage": { "type": "object" },
+    "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": {
+    "artifactOwnership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "owner", "scope", "serialized"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["control", "verification", "ui_evidence"] },
+        "serialized": { "const": true }
+      }
+    },
+    "wave": {
+      "type": "object",
+      "required": ["id", "phase", "started_at", "ended_at", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "phase": { "type": "string", "minLength": 1 },
+        "started_at": { "type": ["string", "null"] },
+        "ended_at": { "type": ["string", "null"] },
+        "status": { "enum": ["PENDING", "IN_PROGRESS", "COMPLETE", "FAILED", "TIMED_OUT", "BLOCKED"] }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["role", "model", "effort", "skill", "attempts", "timeouts", "evidence_owner"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "effort": { "type": "string", "minLength": 1 },
+        "skill": { "type": "string", "minLength": 1 },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "timeouts": { "type": "integer", "minimum": 0 },
+        "evidence_owner": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["id", "owner", "status", "artifact"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["PASS", "FAIL", "NOT_RUN", "NOT_INSTALLED", "HUMAN_GATED", "BLOCKED", "SYNTHETIC"] },
+        "artifact": { "type": ["string", "null"] }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "required": ["id", "evidence", "acceptance_impact", "tie_break_owner", "disposition"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "acceptance_impact": { "type": "string" },
+        "tie_break_owner": { "type": ["string", "null"] },
+        "disposition": { "type": "string" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": ["command", "status", "exit_code", "artifact", "tracked_state_unchanged"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["PASS", "FAIL", "NOT_RUN", "NOT_INSTALLED", "TIMED_OUT", "BLOCKED"] },
+        "exit_code": { "type": ["integer", "null"] },
+        "artifact": { "type": ["string", "null"] },
+        "tracked_state_unchanged": { "type": ["boolean", "null"] }
+      }
+    }
+  }
+}

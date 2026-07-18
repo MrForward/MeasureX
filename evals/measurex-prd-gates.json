@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "source": "MeasureX_MVP_PRD.md section 7, Evaluation Plan",
+  "as_of": "2026-07-19",
+  "status_policy": "File presence is evidence availability, not a passing run. Manual and external-state requirements remain incomplete until dated artifacts exist.",
+  "gates": [
+    {
+      "id": "E1",
+      "name": "End-to-end user journey",
+      "automated": [],
+      "manual": [
+        "Complete the ten-step PRD journey and manually compare at least five extractions with raw responses",
+        "Validate onboarding, dashboard, raw-answer viewer, competitor comparison, rate limit, and score delta"
+      ],
+      "external_state": [
+        "Stripe test checkout and subscription state",
+        "Live prompt generation and two paid answer-engine scans",
+        "Authenticated browser session and one-hour rate-limit interval"
+      ],
+      "command_test_evidence": [],
+      "owner": {
+        "mapping": "qa",
+        "execution": "human",
+        "evidence_review": "reviewer"
+      },
+      "current_evidence_status": "not_evidenced"
+    },
+    {
+      "id": "E2",
+      "name": "Extraction accuracy",
+      "automated": [
+        "Rule-level and integrated Vitest coverage for exact matches, positions, citations, recommendations, URLs, and full extraction"
+      ],
+      "manual": [],
+      "external_state": [],
+      "command_test_evidence": [
+        {
+          "command": "npm test -- src/lib/extraction",
+          "test_files": [
+            "src/lib/extraction/exact-match.test.ts",
+            "src/lib/extraction/position-analysis.test.ts",
+            "src/lib/extraction/citation-classify.test.ts",
+            "src/lib/extraction/recommendation-strength.test.ts",
+            "src/lib/extraction/url-extract.test.ts",
+            "src/lib/extraction/run-extraction.test.ts"
+          ]
+        }
+      ],
+      "owner": {
+        "mapping": "qa",
+        "execution": "verification_runner",
+        "evidence_review": "reviewer"
+      },
+      "current_evidence_status": "exact_test_files_present_not_run_in_this_change"
+    },
+    {
+      "id": "E3",
+      "name": "Scoring math",
+      "automated": [
+        "Visibility score scenarios and bonus, rounding, engine, and delta behavior"
+      ],
+      "manual": [],
+      "external_state": [],
+      "command_test_evidence": [
+        {
+          "command": "npm test -- src/lib/metrics/visibility-score.test.ts",
+          "test_files": [
+            "src/lib/metrics/visibility-score.test.ts"
+          ]
+        }
+      ],
+      "owner": {
+        "mapping": "qa",
+        "execution": "verification_runner",
+        "evidence_review": "reviewer"
+      },
+      "current_evidence_status": "exact_test_file_present_not_run_in_this_change"
+    },
+    {
+      "id": "E4",
+      "name": "Error resilience",
+      "automated": [
+        "Backoff, runner execution, scan eligibility, and scan orchestration unit tests"
+      ],
+      "manual": [
+        "Confirm partial and total failure messaging against rendered UI"
+      ],
+      "external_state": [
+        "Invalid OpenAI and Perplexity credential scenarios",
+        "Stripe cancellation state",
+        "Provider timeout behavior"
+      ],
+      "command_test_evidence": [
+        {
+          "command": "npm test -- src/lib/engines/runners src/lib/scan",
+          "test_files": [
+            "src/lib/engines/runners/backoff.test.ts",
+            "src/lib/engines/runners/execute.test.ts",
+            "src/lib/scan/eligibility.test.ts",
+            "src/lib/scan/orchestrate.test.ts"
+          ]
+        }
+      ],
+      "owner": {
+        "mapping": "qa",
+        "execution": "verification_runner and human",
+        "evidence_review": "reviewer and security_reviewer"
+      },
+      "current_evidence_status": "partial_test_files_present_external_matrix_not_evidenced"
+    },
+    {
+      "id": "E5",
+      "name": "Data integrity",
+      "automated": [
+        "Selected scan orchestration and dashboard transformation unit coverage"
+      ],
+      "manual": [
+        "Verify two persisted scans, latest selection, historical access, timestamps, and delta"
+      ],
+      "external_state": [
+        "Ephemeral or human-approved shared database with two complete scans"
+      ],
+      "command_test_evidence": [
+        {
+          "command": "npm test -- src/lib/scan/orchestrate.test.ts src/lib/dashboard/dashboard-data.test.ts",
+          "test_files": [
+            "src/lib/scan/orchestrate.test.ts",
+            "src/lib/dashboard/dashboard-data.test.ts"
+          ]
+        }
+      ],
+      "owner": {
+        "mapping": "qa",
+        "execution": "verification_runner and human",
+        "evidence_review": "reviewer and security_reviewer"
+      },
+      "current_evidence_status": "incomplete_no_two_scan_persistence_evidence"
+    },
+    {
+      "id": "E6",
+      "name": "Performance",
+      "automated": [],
+      "manual": [
+        "Measure dashboard load, raw-answer drawer open time, full scan duration, and landing Lighthouse targets under documented profiles"
+      ],
+      "external_state": [
+        "Browser performance tooling",
+        "Representative 20-prompt by two-engine scan with paid provider calls"
+      ],
+      "command_test_evidence": [],
+      "owner": {
+        "mapping": "qa and product_designer",
+        "execution": "human",
+        "evidence_review": "reviewer"
+      },
+      "current_evidence_status": "not_evidenced_playwright_axe_lighthouse_not_yet_installed"
+    }
+  ]
+}

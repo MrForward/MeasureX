@@ -1,0 +1,7 @@
+interface:
+  display_name: "MeasureX Product Discovery"
+  short_description: "Evidence-led discovery and requirements control"
+  default_prompt: "Use $measurex-product-discovery to turn cited customer and product evidence into a draft MeasureX requirements contract."
+
+policy:
+  allow_implicit_invocation: true

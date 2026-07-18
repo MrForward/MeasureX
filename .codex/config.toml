@@ -1,0 +1,14 @@
+# MeasureX project-local Codex defaults. Loaded only when this repository is trusted.
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+web_search = "disabled"
+
+[sandbox_workspace_write]
+network_access = false
+
+[agents]
+max_threads = 4
+max_depth = 1

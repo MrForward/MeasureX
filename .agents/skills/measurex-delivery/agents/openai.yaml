@@ -1,0 +1,7 @@
+interface:
+  display_name: "MeasureX Delivery"
+  short_description: "Orchestrate bounded MeasureX feature delivery"
+  default_prompt: "Use $measurex-delivery to deliver this MeasureX feature with scoped delegation, critique, verification, and handoff."
+
+policy:
+  allow_implicit_invocation: true
