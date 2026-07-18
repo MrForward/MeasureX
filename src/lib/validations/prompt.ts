@@ -25,7 +25,7 @@ export const PROMPT_INTENTS = [
     'transactional',
 ] as const;
 
-export const PROMPT_ENGINES = ['chatgpt', 'perplexity', 'google_ai'] as const;
+export const PROMPT_ENGINES = ['chatgpt', 'perplexity'] as const;
 
 const textSchema = z
     .string()
@@ -48,7 +48,6 @@ const enginesSchema = z
         }),
     )
     .min(1, 'At least one engine must be selected')
-    .max(PROMPT_ENGINES.length, 'Too many engines selected')
     // De-duplicate while preserving order.
     .transform((engines) => Array.from(new Set(engines)));
 
