@@ -1,6 +1,6 @@
 # Human-only boundaries
 
-These gates are exact and cannot be delegated to a model, subagent, automatic approval reviewer, scheduled task, or unattended workflow. When one is reached, the agent stops before the action, identifies the exact target and consequence, and asks the human to perform the action or provide the specifically required authorization and resulting evidence.
+These gates are exact and cannot be delegated to the Lead, a subagent, `verification_runner`, an automatic approval reviewer, a scheduled task, or an unattended workflow. When one is reached, the agent stops before the action, identifies the exact target and consequence, and asks the human to perform the action or provide the specifically required authorization and resulting evidence.
 
 1. **Credentials, OAuth, and MFA:** entering, retrieving, rotating, copying, exposing, or approving credentials; completing OAuth consent or MFA; changing identity or permission grants. Agents must not read `.env.local`.
 2. **Paid live provider calls:** any non-mocked call that can consume paid OpenAI, Perplexity, Anthropic, or other provider quota. Local mocks, fixtures, and pure parsing tests do not cross this gate.
@@ -8,7 +8,7 @@ These gates are exact and cannot be delegated to a model, subagent, automatic ap
 4. **Production release state:** production deployment, production configuration change, merging to a protected or release branch, or approving a release. Local builds and read-only release review are allowed.
 5. **Destructive actions:** deletion, irreversible overwrite, history rewrite, destructive migration, data purge, forced update, or any action whose recovery is uncertain.
 6. **Risk acceptance:** accepting or waiving legal, privacy, compliance, or security risk; downgrading a security finding on business-risk grounds; approving customer-facing policy or regulated claims.
-7. **Unavoidable manual browser or UX validation:** captchas, payment/OAuth flows, real inbox checks, assistive-technology judgment, visual or interaction validation that automation cannot establish, and any step requiring the human's signed-in browser identity.
+7. **Unavoidable manual browser or UX validation:** captchas, payment/OAuth flows, real inbox checks, assistive-technology judgment, visual taste or interaction validation that automation cannot establish, and any step requiring the human's signed-in browser identity. `product_designer` and browser automation can prepare evidence but cannot approve the human taste gate. Screenshot baselines begin only after human approval.
 
 Human approval is scoped to the action shown. It does not grant broader filesystem, network, credential, deployment, or product authority. After the human supplies the outcome, the agent may continue with local reversible work inside the existing envelope.
 

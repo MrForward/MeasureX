@@ -1,0 +1,7 @@
+interface:
+  display_name: "MeasureX Quality Gate"
+  short_description: "Run evidence-based MeasureX quality gates"
+  default_prompt: "Use $measurex-quality-gate to run a diagnostic or release gate with deterministic evidence and no false PASS."
+
+policy:
+  allow_implicit_invocation: true

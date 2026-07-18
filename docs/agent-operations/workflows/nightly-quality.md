@@ -3,22 +3,20 @@
 Use this text as the prompt for a Codex desktop scheduled task. Each run is diagnostic and must start in an isolated worktree or other clean checkout, never the dirty Local checkout.
 
 ```text
-Run the unattended nightly MeasureX quality check as the sole orchestrator.
+Use $measurex-quality-gate in diagnostic mode for the unattended nightly MeasureX quality check. Act as the Lead and sole orchestrator.
 
-Read AGENTS.md and docs/agent-operations/README.md. Confirm this is not the dirty Local checkout. Record branch, HEAD, git status, pre-existing changes, and timestamp. If tracked changes are already present, report a collision and stop without modifying them.
+Read AGENTS.md and docs/agent-operations/README.md. Confirm this is not the dirty Local checkout. Record branch, HEAD, git status, timestamp, matching skill, and agent/model/effort ledger. If tracked changes are already present, report a collision and stop without modifying them.
 
 Keep network disabled. Never read .env.local, use credentials, call live or paid providers, mutate Stripe/Resend/shared databases, perform manual browser steps, edit tracked files, commit, push, merge, deploy, delete, or accept risk. A scheduled run cannot satisfy a human-only gate.
 
-Designate qa as the only workspace-write-capable worker, limited to ignored artifacts produced by commands. Have qa run in order:
-1. npm test
-2. npm run type-check
-3. npm run lint
-4. npm run build
-Capture command, exit status, duration when available, and the smallest useful failure excerpt. Continue after a failure when safe so the report covers all four checks.
+Delegate:
+- qa remains read-only and maps the PRD gates and test design;
+- verification_runner alone runs npm test, npm run type-check, npm run lint, and npm run build, captures exact exit status/duration/evidence, and may create only ignored command artifacts;
+- reviewer classifies failures and inspects source read-only for regressions, flaky evidence, stale expectations, scope drift, and missing tests.
+Continue after an individual command failure when safe so all four checks are reported. Stop if a command changes tracked state.
 
-Critique round 1: delegate reviewer to classify failures and inspect current source read-only for likely regressions, flaky evidence, stale expectations, scope drift, and missing tests. Findings require file/line evidence; do not invent a root cause from logs alone.
+Critique round 1: require evidence-based findings with file/line support; do not infer root cause from logs alone. No remediation writes are allowed.
+Critique round 2: reviewer verifies the finding list against verification_runner evidence, removes unsupported claims, groups duplicates, and marks reproducible defect, likely defect, environment issue, NOT YET INSTALLED, or human/manual gate. qa confirms only acceptance mapping.
 
-No remediation writes are allowed in this nightly task. Critique round 2: have reviewer verify the finding list against qa's raw command outcomes, remove unsupported claims, group duplicates by root cause, and mark each item as reproducible defect, likely defect, environment issue, or needs human/manual validation.
-
-Return a concise nightly report: PASS or ATTENTION; branch/HEAD; initial and final status; command matrix; new evidence; human gates; collision state; and the safest next feature-worktree prompt. PASS only if all four commands succeed and tracked git state is unchanged.
+Return PASS or ATTENTION with branch/HEAD, initial/final status, command matrix, findings, agent/model/skill ledger, human gates, collision state, effectiveness measures where observable, and the safest next $measurex-delivery worktree prompt. PASS requires all four commands successful and tracked state unchanged.
 ```

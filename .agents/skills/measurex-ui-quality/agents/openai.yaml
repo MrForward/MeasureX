@@ -1,0 +1,7 @@
+interface:
+  display_name: "MeasureX UI Quality"
+  short_description: "Enforce MeasureX UI and accessibility quality"
+  default_prompt: "Use $measurex-ui-quality to design and review this MeasureX interface against product-specific visual, responsive, and accessibility gates."
+
+policy:
+  allow_implicit_invocation: true

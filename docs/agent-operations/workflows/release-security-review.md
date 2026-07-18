@@ -3,20 +3,22 @@
 Run in a clean, isolated release-candidate worktree. This workflow reviews; it never merges or deploys.
 
 ```text
-Perform the MeasureX release and security gate for <BASE>...<HEAD> in this isolated worktree.
+Use $measurex-quality-gate in release mode for <BASE>...<HEAD> in this isolated worktree.
 
-Act as the sole orchestrator. Follow docs/agent-operations/OPERATING_MODEL.md. Record base/head SHAs, git status, diff paths, pre-existing changes, and release acceptance criteria. Do not edit application source, read .env.local, use network access, call live providers, mutate Stripe/Resend/database state, commit, push, merge, or deploy.
+Act as the Lead and sole orchestrator. Follow docs/agent-operations/OPERATING_MODEL.md. Record base/head SHAs, git status, diff paths, pre-existing changes, release criteria, skills, and the agent/model/effort ledger. Do not edit application source, read .env.local, use network access, call live providers, mutate Stripe/Resend/database state, commit, push, merge, or deploy.
 
-Designate qa as the only workspace-write-capable worker for this review solely because verification commands may create ignored local artifacts; qa must not modify tracked files. Delegate in parallel where safe:
-- qa: run npm test, npm run type-check, npm run lint, and npm run build; return exit codes, concise failure evidence, and acceptance coverage;
-- reviewer: read-only diff review for correctness, data integrity, client-driven batching regressions, locked-MVP drift, and test gaps;
-- security_reviewer: read-only threat-boundary review, including identity, permissions, tenant isolation, webhook/idempotency, secrets, injection, side effects, failure recovery, and audit evidence.
+Delegate in parallel where safe:
+- qa: read-only PRD and acceptance mapping, test design, and manual/external-state gaps; qa never runs checks;
+- verification_runner: run npm test, npm run type-check, npm run lint, and npm run build; capture exact exit codes and concise evidence; never modify tracked files;
+- reviewer: read-only correctness, integrity, client-batch, locked-MVP, and test-gap review;
+- security_reviewer: required read-only trust-boundary review, including identity, tenant isolation, webhooks, idempotency, secrets, injection, side effects, recovery, and audit evidence;
+- if the diff contains any user-facing UI, invoke $measurex-ui-quality and require product_designer to review current UI evidence and the complete rubric.
 
-Critique round 1: normalize all findings by severity and deduplicate them by root cause. Every finding needs file/line evidence, impact, remediation, and verification. Separate confirmed defects, defense-in-depth items, manual validation, and environment failures.
+Critique round 1: normalize and deduplicate findings by root cause. Every finding needs file/line evidence, impact, remediation, and verification. Separate confirmed defects, defense-in-depth items, manual validation, external state, environment failures, and NOT YET INSTALLED tools.
 
-There is no remediation write in this review worktree. Produce a bounded remediation plan for a separate feature worktree. Any proposed security/legal/privacy risk acceptance is a human-only gate.
+There is no remediation write in this review worktree. Produce a bounded remediation plan for a separate feature worktree. Security/legal/privacy risk acceptance and unavoidable manual UI validation are human-only gates.
 
-Critique round 2: ask reviewer and security_reviewer to cross-check the normalized findings against the diff and qa evidence. They must identify unsupported or missing findings, verify locked-MVP invariants, and state release blockers. Ask qa to confirm command evidence and whether failures are reproducible without network or secrets.
+Critique round 2: reviewer and security_reviewer cross-check normalized findings against the diff, qa mapping, and verification_runner evidence. product_designer rechecks every UI finding and the human taste gate. qa confirms acceptance coverage without reinterpreting command output.
 
-Return a release recommendation of PASS, FAIL, or HUMAN-GATED with evidence. PASS requires all four commands successful, no unresolved critical/high issue, both critique rounds complete, no scope drift, and manual validation explicitly listed rather than guessed. Do not merge or deploy.
+Return PASS, FAIL, or HUMAN-GATED with evidence. PASS requires all four commands successful, no unresolved critical/high issue, both rounds complete, no scope drift or collision, UI rubric resolved when applicable, and manual/external gates explicitly resolved or out of acceptance scope. Include the agent effectiveness scorecard and single-agent baseline. Do not merge or deploy.
 ```

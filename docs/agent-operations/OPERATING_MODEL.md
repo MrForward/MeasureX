@@ -32,34 +32,42 @@ When sources conflict, cite both. Use the narrower, reversible interpretation if
 
 ### Adaptive inner harness
 
-The root chat may decompose work, choose relevant context, select a bounded custom agent, sequence checks, and replan after evidence. Delegation is used only for context isolation or independent verification. Direct children never spawn more agents (`max_depth = 1`).
+The user starts one Lead task. A matching repo skill may then trigger implicitly and the Lead may decompose work, choose relevant context, select bounded custom agents, sequence checks, and replan after evidence. Agent files never cause idle or background execution. Delegation is used only for context isolation or independent verification. Direct children never spawn more agents (`max_depth = 1`).
 
 ### Deterministic outer envelope
 
-Project configuration fixes workspace-write as the maximum default sandbox, on-request approvals, automatic approval review where available, disabled outbound network, and four total agent threads. Role files further reduce analysis/review agents to read-only. The model never changes identity, credentials, approval rules, scope locks, human gates, or acceptance criteria.
+Project configuration fixes the Lead model route, workspace-write as the maximum default sandbox, on-request approvals, automatic approval review where available, disabled outbound network, and four total agent threads. Role files pin the [model policy](MODEL_POLICY.md) and reduce all roles except `builder` and `verification_runner` to read-only. The model never changes identity, credentials, approval rules, scope locks, human gates, or acceptance criteria.
 
 Automatic review may decide an eligible sandbox exception under platform policy. It never satisfies a human-only gate. For those gates the orchestrator must stop in natural language, show the exact proposed action and impact, and wait for the human to perform or explicitly authorize the next permitted step.
 
 ### Reliability plane
 
-Every plan states timeouts, bounded retries, idempotency, partial-completion behavior, and deterministic checks when relevant. Verification uses the smallest useful test first and the release gate uses all four repository commands. The handoff preserves base/head identity, initial and final git state, decisions, evidence, and unresolved gates for replay.
+Every plan states timeouts, bounded retries, idempotency, partial-completion behavior, and deterministic checks when relevant. `verification_runner` executes the smallest useful documented check first and the release gate uses all four repository commands. The handoff preserves base/head identity, initial and final git state, decisions, agent/model/skill use, evidence, effectiveness measures, and unresolved gates for replay.
 
 ## Orchestration contract
 
-The main Codex chat is the only orchestrator. There is no orchestrator persona or peer-to-peer discussion. Agents return structured evidence to the main chat; the main chat owns synthesis and the final decision.
+The main Codex chat is the Lead and only orchestrator. There is no orchestrator persona or peer-to-peer discussion. Agents return structured evidence to the Lead; the Lead owns routing, synthesis, and the final decision. Subagent activity may be inspected in Codex, but inspection does not replace the Lead-mediated artifact.
 
-Maximum concurrency is the root plus three direct agents. Parallelize only independent read or verification tasks. Never run parallel writers in one worktree. Before any write, record the initial `git status --short`, the intended file set, and the designated writer. If a requested path contains unexpected user work, stop rather than overwrite it.
+Maximum concurrency is the Lead plus three direct agents. Parallelize only independent read or verification tasks. `builder` is the only tracked-file writer. `verification_runner` may run documented commands that create ignored artifacts but must stop if tracked state changes. Before any write or command group, record the initial `git status --short`, intended files, and role. If a requested path contains unexpected user work, stop rather than overwrite it.
 
 ### Structured two-round critique
 
-1. **Prepare:** `product_manager` maps PRD scope and acceptance criteria; `architect` is added only for meaningful interface, data, or failure-mode decisions.
-2. **Implement:** the designated `builder` (or `qa` for a QA-only worktree) is the only writer. The orchestrator and every other role remain read-only.
-3. **Critique round 1 — discovery:** `reviewer` checks correctness and scope, `qa` checks acceptance coverage without writing, and `security_reviewer` joins when auth, user data, billing, providers, webhooks, or side effects are touched. Each returns findings in its required schema. No free-form rebuttal occurs.
+1. **Prepare:** `$measurex-delivery` controls non-trivial delivery. `product_manager` maps PRD scope and acceptance criteria; `architect` is added only for meaningful interface, data, or failure-mode decisions. Any user-facing UI also invokes `$measurex-ui-quality` and requires `product_designer` plus a design brief before builder starts.
+2. **Implement:** `builder` is the only tracked-file writer. The Lead and every critic remain read-only. `verification_runner` is not an implementation writer.
+3. **Critique round 1 — discovery:** `reviewer` checks correctness and scope, read-only `qa` checks acceptance and test design, and `security_reviewer` joins when auth, user data, billing, providers, webhooks, side effects, or release judgment are touched. `product_designer` participates for UI work. Each returns findings in its required schema. No free-form rebuttal occurs.
 4. **Remediate:** the same designated writer addresses accepted findings and records declined findings with evidence. No second writer is introduced.
-5. **Critique round 2 — verification:** the relevant critics inspect the revised diff and verify only the acceptance matrix plus round-one dispositions. They must identify new findings as new evidence and state explicitly when no actionable finding remains.
-6. **Synthesize:** the orchestrator checks the final diff, verification outputs, unresolved human gates, collisions, and handoff. A critic cannot self-certify its own write.
+5. **Critique round 2 — verification:** `verification_runner` supplies command evidence; the relevant critics inspect the revised diff and verify the acceptance matrix plus round-one dispositions. `product_designer` rechecks every UI change. Critics must identify new findings as new evidence and state explicitly when no actionable finding remains.
+6. **Synthesize:** the Lead checks the final diff, verification outputs, UI rubric where applicable, unresolved human gates, collisions, effectiveness scorecard, and handoff. A critic cannot self-certify its own write.
 
-For a trivial documentation-only change, the orchestrator may be the sole worker, but it still inspects the diff and records verification. Do not manufacture agent chatter when independent review adds no value.
+For a trivial documentation-only change, the Lead may be the sole worker, but it still inspects the diff and records verification. Do not manufacture agent chatter when independent review adds no value; record the single-agent baseline as sufficient.
+
+## Skills and effectiveness evidence
+
+Status and handoff artifacts record each invoked skill and each agent's role, model, effort, inputs, outputs, and finding disposition. Score acceptance pass rate, finding precision, missed or escaped defects, unsupported findings, remediation rounds, collisions, human interruptions, and time or usage when observable. Compare against the simplest single-agent baseline rather than assuming fan-out is beneficial.
+
+## Hooks decision
+
+Hooks are deferred until one or two real feature cycles produce a stable run artifact and an enforceable failure contract. Hooks are defense-in-depth and require trust review; they do not replace skills, role sandboxes, human boundaries, or independent verification. Revisit only with evidence that a deterministic hook will catch a repeated failure without creating unsafe or noisy blocks.
 
 ## Decision and escalation policy
 
@@ -75,5 +83,7 @@ A completed feature has:
 - a final collision check and diff inspection;
 - relevant deterministic tests and, at the release gate, `npm test`, `npm run type-check`, `npm run lint`, and `npm run build`;
 - two critique rounds for non-trivial implementation or release work;
+- `product_designer` before implementation and in both critique rounds for UI work;
+- a recorded agent/model/skill ledger and effectiveness score;
 - no unresolved critical/high findings and no bypassed human gate;
 - a collision-aware handoff using the supplied template.
