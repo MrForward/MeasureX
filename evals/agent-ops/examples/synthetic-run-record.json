@@ -8,6 +8,14 @@
     "run": "artifacts/agent-runs/synthetic-structure-only/",
     "ui": null
   },
+  "artifact_ownership": [
+    {
+      "path": "artifacts/agent-runs/synthetic-structure-only/run.json",
+      "owner": "Lead",
+      "scope": "control",
+      "serialized": true
+    }
+  ],
   "requirement_lock": {
     "id": null,
     "version": null,

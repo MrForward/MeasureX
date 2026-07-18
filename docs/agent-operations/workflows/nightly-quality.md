@@ -7,7 +7,7 @@ Use $measurex-quality-gate in diagnostic mode for the unattended nightly Measure
 
 Read AGENTS.md and docs/agent-operations/README.md. Confirm this is not the dirty Local checkout. Record branch, HEAD, git status, timestamp, matching skill, and agent/model/effort ledger. If tracked changes are already present, report a collision and stop without modifying them.
 
-Create a task ID and ignored run-artifact path. Detect node_modules and record Node/npm versions and lockfile hash under ENVIRONMENT_SETUP.md; never install. If dependencies or a mandatory tool are unavailable, report NOT INSTALLED/BLOCKED rather than PASS. Use capped waves and record attempts/timeouts.
+Create a task ID, ignored run-artifact path, and ownership map. The tracked-read-only Lead writes only control records and verification_runner only its verification evidence; serialize writes and stop if ownership is ambiguous or tracked state changes. Detect node_modules and record Node/npm versions and lockfile hash under ENVIRONMENT_SETUP.md; never install. If dependencies or a mandatory tool are unavailable, report NOT INSTALLED/BLOCKED rather than PASS. Use capped waves and record attempts/timeouts.
 
 Keep network disabled. Never read .env.local, use credentials, call live or paid providers, mutate Stripe/Resend/shared databases, perform manual browser steps, edit tracked files, commit, push, merge, deploy, delete, or accept risk. A scheduled run cannot satisfy a human-only gate.
 

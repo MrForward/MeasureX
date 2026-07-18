@@ -50,7 +50,13 @@ The main Codex chat is the Lead and only orchestrator. There is no orchestrator 
 
 Maximum concurrency is the Lead plus three direct agents. Use capped waves: preflight; discovery/requirements when needed; preparation; builder alone; critique round one in one or more waves; same-builder remediation; verification and round two in waves; synthesis. Wait for every required result and close completed slots before the next wave. Never omit a mandatory role because all slots are occupied. Parallelize only independent reads or verification.
 
-`builder` is the only tracked-file writer. `verification_runner` may run documented commands that create ignored artifacts but must stop if tracked state changes. Before any write or command group, record the initial `git status --short`, intended files, role, task ID, and artifact path. If a requested path contains unexpected user work, stop rather than overwrite it.
+For every non-trivial feature, fix, or application task, `builder` is the only tracked project-file writer and the Lead is read-only on tracked/project files. The sole exception is a genuinely trivial, non-authoritative documentation-only task: the Lead may be explicitly designated as its one tracked-file writer and must not fan out. One task/worktree always has exactly one tracked writer; critics and `verification_runner` never write tracked files.
+
+Independently of tracked-file ownership, the Lead may create or update task-scoped ignored control artifacts under `artifacts/agent-runs/<task-id>/` and `artifacts/ui/<task-id>/`. This permission is not implementation authority: it never permits source, package, configuration, application, or other tracked edits, nor staging, committing, restoring, or rewriting tracked state. The explicit trivial-docs exception permits only its stated documentation edit.
+
+Artifact ownership is non-overlapping. The Lead owns `run.json` and Lead-generated discovery, requirements, status, handoff, and manifest records. `verification_runner` owns only its verification evidence subdirectory and files. Browser/UI evidence has exactly one named owner recorded by the Lead. Serialize artifact updates; no two roles write the same path concurrently. If ownership or path is ambiguous, or an ignored-artifact write changes tracked state, stop with a collision and `BLOCKED` rather than reverting or continuing.
+
+Before any allowed write or command group, record the initial `git status --short`, intended files, role, task ID, and artifact path. If a requested path contains unexpected user work, stop rather than overwrite it.
 
 ## Discovery and requirements authority
 
@@ -67,7 +73,7 @@ Only `product_manager` may issue `REQUIREMENTS_LOCKED`, after evidence review, a
 5. **Critique round 2 — verification:** `verification_runner` independently reruns selected and final commands; relevant critics inspect the revised diff and verify the acceptance matrix plus dispositions. `product_designer` and independent `reviewer` recheck every UI change. A new critical/high finding returns once to the same builder, receives a targeted recheck, and then the full gate reruns.
 6. **Synthesize:** the Lead checks the final diff, verification outputs, UI rubric where applicable, unresolved human gates, collisions, effectiveness scorecard, and handoff. A critic cannot self-certify its own write.
 
-For a trivial documentation-only change, the Lead may be the sole worker, but it still inspects the diff and records verification. Do not manufacture agent chatter when independent review adds no value; record the single-agent baseline as sufficient.
+For a genuinely trivial, non-authoritative documentation-only change, the explicitly designated Lead may be the sole tracked-file writer and sole worker. It must not fan out, still inspects the exact diff and whitespace, and serializes its own ignored run record with no concurrent writer. Record the single-Lead baseline as sufficient.
 
 ## Bounded failure and conflict handling
 

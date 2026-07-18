@@ -10,7 +10,7 @@ const waveStatusValues = new Set(["PENDING", "IN_PROGRESS", "COMPLETE", "FAILED"
 const evidenceStatusValues = new Set(["PASS", "FAIL", "NOT_RUN", "NOT_INSTALLED", "HUMAN_GATED", "BLOCKED", "SYNTHETIC"]);
 const verificationStatusValues = new Set(["PASS", "FAIL", "NOT_RUN", "NOT_INSTALLED", "TIMED_OUT", "BLOCKED"]);
 const requiredScenario = ["id", "request", "setup", "expected_outcome", "expected_deterministic_invariants"];
-const requiredRun = ["schema_version", "task_id", "synthetic", "status", "timestamps", "artifact_paths", "requirement_lock", "waves", "agents", "evidence", "conflicts", "verification", "human_gates", "usage", "limitations"];
+const requiredRun = ["schema_version", "task_id", "synthetic", "status", "timestamps", "artifact_paths", "artifact_ownership", "requirement_lock", "waves", "agents", "evidence", "conflicts", "verification", "human_gates", "usage", "limitations"];
 
 function fail(message) {
   throw new Error(message);
@@ -67,9 +67,17 @@ function validateRun(file) {
   if (typeof run.task_id !== "string" || !run.task_id.trim()) fail(`${file}: task_id must be non-empty`);
   if (typeof run.synthetic !== "boolean") fail(`${file}: synthetic must be boolean`);
   if (!statusValues.has(run.status)) fail(`${file}: invalid status ${run.status}`);
-  for (const field of ["waves", "agents", "evidence", "conflicts", "verification", "human_gates", "limitations"]) if (!Array.isArray(run[field])) fail(`${file}: ${field} must be an array`);
+  for (const field of ["artifact_ownership", "waves", "agents", "evidence", "conflicts", "verification", "human_gates", "limitations"]) if (!Array.isArray(run[field])) fail(`${file}: ${field} must be an array`);
   requireFields(run.timestamps, ["started_at", "ended_at"], `${file}:timestamps`);
   requireFields(run.artifact_paths, ["run", "ui"], `${file}:artifact_paths`);
+  if (run.artifact_ownership.length === 0) fail(`${file}: artifact_ownership must not be empty`);
+  const ownedPaths = new Set();
+  run.artifact_ownership.forEach((item, index) => {
+    requireFields(item, ["path", "owner", "scope", "serialized"], `${file}:artifact_ownership[${index}]`);
+    if (ownedPaths.has(item.path)) fail(`${file}:artifact_ownership[${index}]: duplicate path owner`);
+    if (!new Set(["control", "verification", "ui_evidence"]).has(item.scope) || item.serialized !== true) fail(`${file}:artifact_ownership[${index}]: invalid scope or serialization`);
+    ownedPaths.add(item.path);
+  });
   requireFields(run.requirement_lock, ["id", "version", "status", "pm_owner", "lead_confirmed"], `${file}:requirement_lock`);
   const lockStatuses = new Set(["NOT_APPLICABLE", "DRAFT", "REQUIREMENTS_LOCKED", "CHANGE_REQUESTED", "SUPERSEDED"]);
   if (!lockStatuses.has(run.requirement_lock.status)) fail(`${file}: invalid requirement_lock status`);

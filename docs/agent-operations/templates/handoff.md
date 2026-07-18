@@ -3,6 +3,7 @@
 - Task ID / task / outcome:
 - Start / end timestamps and timezone:
 - Run artifact path / UI artifact path:
+- Artifact ownership map / serialization result:
 - Worktree path:
 - Branch, base commit, and final HEAD:
 - Initial `git status --short`:

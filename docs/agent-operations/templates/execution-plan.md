@@ -4,6 +4,7 @@
 - Started timestamp / target stop timestamp:
 - Run artifact path: `artifacts/agent-runs/<task-id>/`
 - UI artifact path when applicable: `artifacts/ui/<task-id>/`
+- Artifact ownership map and serialized update order:
 - Lead task / chat:
 - Worktree path:
 - Branch and base commit:

@@ -4,6 +4,7 @@
 - Timestamp and timezone:
 - Started / elapsed where observable:
 - Run / UI artifact paths:
+- Artifact owners / last serialized update / collision state:
 - Worktree / branch / HEAD:
 - Tracked-file writer:
 - Verification runner:

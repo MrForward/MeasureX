@@ -7,7 +7,7 @@ Use $measurex-quality-gate in release mode for <BASE>...<HEAD> in this isolated 
 
 Act as the Lead and sole orchestrator. Follow docs/agent-operations/OPERATING_MODEL.md. Record base/head SHAs, git status, diff paths, pre-existing changes, release criteria, skills, and the agent/model/effort ledger. Do not edit application source, read .env.local, use network access, call live providers, mutate Stripe/Resend/database state, commit, push, merge, or deploy.
 
-Create a task ID and ignored run/UI artifact paths. Verify dependency state under ENVIRONMENT_SETUP.md; verification_runner never installs. Schedule required roles in capped waves, wait for every result, and release completed slots. Record attempts and timeouts; one narrower retry uses the same evidence, and a missing mandatory role is BLOCKED.
+Create a task ID, ignored run/UI artifact paths, and non-overlapping ownership map. The tracked-read-only Lead owns control records, verification_runner only its verification evidence, and one named owner UI/browser evidence; serialize writes and stop if ownership is ambiguous or tracked state changes. Verify dependency state under ENVIRONMENT_SETUP.md; verification_runner never installs. Schedule required roles in capped waves, wait for every result, and release completed slots. Record attempts and timeouts; one narrower retry uses the same evidence, and a missing mandatory role is BLOCKED.
 
 Delegate in parallel where safe:
 - qa: read-only PRD and acceptance mapping, test design, and manual/external-state gaps; qa never runs checks;

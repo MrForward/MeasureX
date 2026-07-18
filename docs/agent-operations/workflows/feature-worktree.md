@@ -7,7 +7,7 @@ Use $measurex-delivery to implement exactly one MeasureX feature in this isolate
 
 You are the Lead and sole orchestrator. Follow AGENTS.md and docs/agent-operations/README.md. Record worktree path, branch/base/HEAD, git status, pre-existing changes, target files, forbidden systems, PRD headings, matching skills, and the agent/model/effort ledger. Stop if this is the Local checkout, a requested path has unexpected user work, or ownership is ambiguous. Agents start only from this Lead task; do not run roles merely because they exist.
 
-Create a task ID, `artifacts/agent-runs/<task-id>/` path, any `artifacts/ui/<task-id>/` path, timestamps, attempt/timeouts, and capped wave plan. Follow ENVIRONMENT_SETUP.md before verification. Wait for required results and release completed child slots; never omit a mandatory role because Lead plus three slots are full.
+Create a task ID, `artifacts/agent-runs/<task-id>/` path, any `artifacts/ui/<task-id>/` path, timestamps, attempt/timeouts, capped wave plan, and non-overlapping artifact ownership map. The Lead writes only ignored control records, verification_runner only its verification evidence, and one named owner only UI/browser evidence; serialize updates and stop if ownership is ambiguous or tracked state changes. Follow ENVIRONMENT_SETUP.md before verification. Wait for required results and release completed child slots; never omit a mandatory role because Lead plus three slots are full.
 
 Preserve the locked MVP: ChatGPT gpt-4o-mini and Perplexity sonar only, rule-based extraction, client-driven scan batches, no queue/cron/RBAC, and Stripe $9/month. Do not read .env.local. Network stays disabled. Do not commit, push, open a PR, merge, deploy, or touch live/shared services.
 

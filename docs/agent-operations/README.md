@@ -9,7 +9,7 @@ This directory defines the additive operating contract for agent-assisted Measur
 3. Start one Lead task in that chat. Matching repo skills may trigger implicitly from the request; agents do not idle-run merely because their files exist.
 4. Choose an isolated **Worktree** for any task that may write. Never point a writer at the dirty Local checkout.
 5. Paste the appropriate prompt from `workflows/` or describe the outcome. Product discovery is a separate explicit Lead task. The Lead is the sole orchestrator, adjudicator, and final evidence owner; it invokes or delegates agents according to the matching skill but never replaces an independent mandatory critic.
-6. Keep `builder` as the only tracked-file writer in a feature worktree. `verification_runner` has workspace-write only so documented checks can create ignored artifacts; it must never edit tracked files. Every other custom role is read-only.
+6. Keep `builder` as the only tracked/project-file writer for every non-trivial feature, fix, or application task. A Lead may be explicitly designated as the sole tracked writer only for a genuinely trivial, non-authoritative documentation task and must not fan out. Otherwise the Lead writes only task-scoped ignored control artifacts. `verification_runner` writes only ignored verification evidence; one named owner writes UI/browser evidence. Serialize artifact updates; no roles share a path, and every critic remains read-only.
 
 The Lead and custom roles use the explicit [model policy](MODEL_POLICY.md). The user's one Lead task activates the workflow; model pins and implicit skills do not create background work. Subagent activity remains inspectable in Codex, while all decisions and handoffs flow through the Lead instead of peer chatter.
 
