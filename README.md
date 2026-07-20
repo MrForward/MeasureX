@@ -24,6 +24,7 @@ MeasureX shows B2B SaaS growth and content marketers where their brands appear i
 | Payments | Stripe Checkout + Customer Portal |
 | Email | Resend |
 | Answer engines | OpenAI (`gpt-4o-mini`) + Perplexity (`sonar`) |
+| Scan orchestration | Client-driven batches (no queue or background workers) |
 | Prompt suggestions | Anthropic Claude Haiku |
 | Hosting | Vercel |
 
